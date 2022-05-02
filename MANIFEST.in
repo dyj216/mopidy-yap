@@ -1,0 +1,17 @@
+include .coveragerc
+include LICENSE
+include MANIFEST.in
+include README.rst
+include mopidy_revelry/ext.conf
+
+recursive-include tests *.py
+
+# added by check_manifest.py
+recursive-include mopidy_revelry *.css
+recursive-include mopidy_revelry *.eot
+recursive-include mopidy_revelry *.html
+recursive-include mopidy_revelry *.js
+recursive-include mopidy_revelry *.svg
+recursive-include mopidy_revelry *.ttf
+recursive-include mopidy_revelry *.woff
+recursive-include mopidy_revelry *.woff2

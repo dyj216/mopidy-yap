@@ -1,0 +1,12 @@
+*.egg-info
+*.pyc
+*.swp
+.coverage
+.tox/
+MANIFEST
+build/
+dist/
+.idea
+node_modules
+Mopidy_Revelry.egg-info
+.env*.local
