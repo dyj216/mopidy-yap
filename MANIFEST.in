@@ -3,6 +3,7 @@ include LICENSE
 include MANIFEST.in
 include README.rst
 include mopidy_revelry/ext.conf
+include mopidy_revelry/static/favicon.ico
 
 recursive-include tests *.py
 
