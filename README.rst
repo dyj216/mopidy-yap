@@ -48,10 +48,3 @@ Project resources
 
 - `Source code <https://github.com/dyj216/mopidy-revelry>`_
 - `Issue tracker <https://github.com/dyj216/mopidy-revelry/issues>`_
-
-Changelog
-=========
-
-v0.1.0 (2022-05-02)
-----------------------------------------
-- Initial release.

@@ -23,10 +23,10 @@ import {SearchComponent} from "./js/SearchComponent";
 
 
 const mopidy = new Mopidy({
-  webSocketUrl: "ws://localhost:6680/mopidy/ws/",
+  webSocketUrl: `ws://${document.location.host}/mopidy/ws`,
 });
 
-const revelry = new WebSocket("ws://localhost:6680/revelry/ws");
+const revelry = new WebSocket(`ws://${document.location.host}/revelry/ws`);
 
 export function getTrackInfo(track) {
   if (track.tlid) {
