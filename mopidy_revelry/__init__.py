@@ -8,6 +8,7 @@ from mopidy import config, ext
 
 __version__ = "0.1.3"
 
+from mopidy_revelry.frontend import RevelryFrontend
 logger = logging.getLogger(__name__)
 
 
@@ -40,6 +41,7 @@ class Extension(ext.Extension):
             'name': self.ext_name,
             'factory': revelry_factory,
         })
+        registry.add("frontend", RevelryFrontend)
 
 
 class WebSocketRevelryHandler(tornado.websocket.WebSocketHandler):
