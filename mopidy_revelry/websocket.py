@@ -1,7 +1,10 @@
+import logging
+from typing import Optional, Awaitable
+
 import tornado.escape
 import tornado.websocket
 
-from mopidy_revelry import logger
+logger = logging.getLogger(__name__)
 
 
 class WebSocketRevelryHandler(tornado.websocket.WebSocketHandler):
@@ -10,6 +13,9 @@ class WebSocketRevelryHandler(tornado.websocket.WebSocketHandler):
     votes_to_skip = set()
     votes_to_delete = {}
     votes_to_top = {}
+
+    def data_received(self, chunk: bytes) -> Optional[Awaitable[None]]:
+        pass
 
     def initialize(self, core, configuration):
         self.core = core
