@@ -27,9 +27,9 @@ class RevelryFrontend(pykka.ThreadingActor, CoreListener):
         pass
 
     def track_playback_ended(self, tl_track, time_position):
-        if self.config["spotify"] and self.config["spotify"]["enabled"]:
+        if self.config["spotify"] and self.config["spotify"]["enabled"] and self.config["revelry"]["autoplay"]:
             tl_length = self.core.tracklist.get_length().get()
-            if tl_length < 2:
+            if tl_length == 1:
                 uris = self.load_more_tracks([tl_track.track.uri])
                 if uris:
                     self.core.tracklist.add(uris=uris)

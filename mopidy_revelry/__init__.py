@@ -26,6 +26,7 @@ class Extension(ext.Extension):
         schema['votes_to_delete'] = config.Integer(minimum=1)
         schema['votes_to_top'] = config.Integer(minimum=1)
         schema['pause_button'] = config.Boolean()
+        schema['autoplay'] = config.Boolean()
         return schema
 
     def validate_environment(self):
