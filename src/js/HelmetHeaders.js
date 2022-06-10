@@ -6,7 +6,7 @@ export function HelmetHeaders() {
     <Helmet>
       <meta charSet="utf-8"/>
       <meta name="viewport" content="initial-scale=1, width=device-width"/>
-      <title>Mopidy Revelry</title>
+      <title>Mopidy Yap</title>
     </Helmet>
   );
 }

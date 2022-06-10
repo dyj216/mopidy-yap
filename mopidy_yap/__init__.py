@@ -5,15 +5,15 @@ from mopidy import config, ext
 
 __version__ = "0.1.3"
 
-from mopidy_revelry.frontend import RevelryFrontend
-from mopidy_revelry.websocket import WebSocketRevelryHandler
+from mopidy_yap.frontend import YapFrontend
+from mopidy_yap.websocket import WebSocketYapHandler
 
 logger = logging.getLogger(__name__)
 
 
 class Extension(ext.Extension):
-    dist_name = 'Mopidy-Revelry'
-    ext_name = 'revelry'
+    dist_name = 'Mopidy-Yap'
+    ext_name = 'yap'
     version = __version__
 
     def get_default_config(self):
@@ -39,12 +39,12 @@ class Extension(ext.Extension):
         })
         registry.add('http:app', {
             'name': self.ext_name,
-            'factory': revelry_factory,
+            'factory': yap_factory,
         })
-        registry.add("frontend", RevelryFrontend)
+        registry.add("frontend", YapFrontend)
 
 
-def revelry_factory(configuration, core):
+def yap_factory(configuration, core):
     return [
-        ('/ws', WebSocketRevelryHandler, {'core': core, 'configuration': configuration}),
+        ('/ws', WebSocketYapHandler, {'core': core, 'configuration': configuration}),
     ]

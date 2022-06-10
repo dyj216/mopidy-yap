@@ -1,5 +1,5 @@
 ****************************
-Mopidy-Revelry
+Mopidy-Yap
 ****************************
 
 Mopidy web extension inspired by the `Mopidy-Party <https://github.com/Lesterpig/mopidy-party>`_ extension.
@@ -17,7 +17,7 @@ You must install `mopidy <https://www.mopidy.com/>`_ (version 3) and some backen
 
 **PROD:** you just have to install pip and then::
 
-    sudo python3 -m pip install Mopidy-Revelry
+    sudo python3 -m pip install Mopidy-Yap
 
 **DEV:** After cloning the repository, install by running::
 
@@ -29,14 +29,14 @@ Usage
 To use the interface, simply use your browser to visit your Mopidy instance's IP at port 6680 to see all available web interfaces.
 For example, http://localhost:6680/
 
-Direct access to Mopidy Revelry should then be: http://localhost:6680/revelry/
+Direct access to Mopidy Yap should then be: http://localhost:6680/yap/
 
 Configuration
 =============
 
 ::
 
-    [revelry]
+    [yap]
     enabled = true
     votes_to_skip = 3
     votes_to_delete = 3
@@ -46,5 +46,5 @@ Configuration
 Project resources
 =================
 
-- `Source code <https://github.com/dyj216/mopidy-revelry>`_
-- `Issue tracker <https://github.com/dyj216/mopidy-revelry/issues>`_
+- `Source code <https://github.com/dyj216/mopidy-yap>`_
+- `Issue tracker <https://github.com/dyj216/mopidy-yap/issues>`_

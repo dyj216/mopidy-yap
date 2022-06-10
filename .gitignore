@@ -8,5 +8,5 @@ build/
 dist/
 .idea
 node_modules
-Mopidy_Revelry.egg-info
+Mopidy_Yap.egg-info
 .env*.local

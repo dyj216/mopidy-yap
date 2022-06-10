@@ -24,14 +24,14 @@ export function printTrackLength(track){
     return '(' + _min + ':' + (_sec < 10 ? '0' + _sec : _sec) + ')' ;
 }
 
-function removeTrack(revelry, tlid) {
+function removeTrack(yap, tlid) {
   const payload = JSON.stringify({action: "vote_to_delete", payload: {track_id: tlid}});
-  revelry.send(payload);
+  yap.send(payload);
 }
 
-function setAsNextTrack(revelry, tlid) {
+function setAsNextTrack(yap, tlid) {
   const payload = JSON.stringify({action: "vote_to_top", payload: {track_id: tlid}});
-  revelry.send(payload);
+  yap.send(payload);
 }
 
 export function Playlist(props) {
@@ -62,7 +62,7 @@ export function Playlist(props) {
           <ListItem
             key={track.tlid}
             secondaryAction={
-              <IconButton edge="end" aria-label="delete" onClick={() => removeTrack(props.revelry, track.tlid)}>
+              <IconButton edge="end" aria-label="delete" onClick={() => removeTrack(props.yap, track.tlid)}>
                 <Badge badgeContent={props.deleteCount[track.tlid]} color="primary">
                   <Delete/>
                 </Badge>
@@ -70,7 +70,7 @@ export function Playlist(props) {
             }
           >
             <ListItemAvatar>
-              <IconButton color="primary" size="large" onClick={() => setAsNextTrack(props.revelry, track.tlid)}>
+              <IconButton color="primary" size="large" onClick={() => setAsNextTrack(props.yap, track.tlid)}>
                 <Badge badgeContent={props.moveToTopCount[track.tlid]} color="primary">
                   <KeyboardArrowUp/>
                 </Badge>

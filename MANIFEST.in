@@ -2,17 +2,17 @@ include .coveragerc
 include LICENSE
 include MANIFEST.in
 include README.rst
-include mopidy_revelry/ext.conf
-include mopidy_revelry/static/favicon.ico
+include mopidy_yap/ext.conf
+include mopidy_yap/static/favicon.ico
 
 recursive-include tests *.py
 
 # added by check_manifest.py
-recursive-include mopidy_revelry *.css
-recursive-include mopidy_revelry *.eot
-recursive-include mopidy_revelry *.html
-recursive-include mopidy_revelry *.js
-recursive-include mopidy_revelry *.svg
-recursive-include mopidy_revelry *.ttf
-recursive-include mopidy_revelry *.woff
-recursive-include mopidy_revelry *.woff2
+recursive-include mopidy_yap *.css
+recursive-include mopidy_yap *.eot
+recursive-include mopidy_yap *.html
+recursive-include mopidy_yap *.js
+recursive-include mopidy_yap *.svg
+recursive-include mopidy_yap *.ttf
+recursive-include mopidy_yap *.woff
+recursive-include mopidy_yap *.woff2

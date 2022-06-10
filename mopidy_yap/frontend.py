@@ -12,7 +12,7 @@ from mopidy.core import CoreListener, Core
 logger = logging.getLogger(__name__)
 
 
-class RevelryFrontend(pykka.ThreadingActor, CoreListener):
+class YapFrontend(pykka.ThreadingActor, CoreListener):
     def __init__(self, config, core: Core):
         super().__init__()
 
@@ -27,7 +27,7 @@ class RevelryFrontend(pykka.ThreadingActor, CoreListener):
         pass
 
     def track_playback_ended(self, tl_track, time_position):
-        if self.config["spotify"] and self.config["spotify"]["enabled"] and self.config["revelry"]["autoplay"]:
+        if self.config["spotify"] and self.config["spotify"]["enabled"] and self.config["yap"]["autoplay"]:
             tl_length = self.core.tracklist.get_length().get()
             if tl_length == 1:
                 uris = self.load_more_tracks([tl_track.track.uri])

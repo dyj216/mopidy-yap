@@ -7,7 +7,7 @@ import tornado.websocket
 logger = logging.getLogger(__name__)
 
 
-class WebSocketRevelryHandler(tornado.websocket.WebSocketHandler):
+class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
     users = set()
     current_track = ""
     votes_to_skip = set()
@@ -19,10 +19,10 @@ class WebSocketRevelryHandler(tornado.websocket.WebSocketHandler):
 
     def initialize(self, core, configuration):
         self.core = core
-        self.required_votes_to_skip = configuration["revelry"]["votes_to_skip"]
-        self.required_votes_to_delete = configuration["revelry"]["votes_to_delete"]
-        self.required_votes_to_top = configuration["revelry"]["votes_to_top"]
-        self.pause_button = configuration["revelry"]["pause_button"]
+        self.required_votes_to_skip = configuration["yap"]["votes_to_skip"]
+        self.required_votes_to_delete = configuration["yap"]["votes_to_delete"]
+        self.required_votes_to_top = configuration["yap"]["votes_to_top"]
+        self.pause_button = configuration["yap"]["pause_button"]
 
     def get_compression_options(self):
         # Non-None enables compression with default options.
@@ -32,21 +32,21 @@ class WebSocketRevelryHandler(tornado.websocket.WebSocketHandler):
         return True
 
     def open(self):
-        WebSocketRevelryHandler.users.add(self)
+        WebSocketYapHandler.users.add(self)
         self.write_message({
             "action": "connect",
             "payload": {
                 "message": "Connected!",
-                "votes": len(WebSocketRevelryHandler.votes_to_skip),
-                "tops": {key: len(value) for (key, value) in WebSocketRevelryHandler.votes_to_top.items()},
-                "deletes": {key: len(value) for (key, value) in WebSocketRevelryHandler.votes_to_delete.items()},
+                "votes": len(WebSocketYapHandler.votes_to_skip),
+                "tops": {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_top.items()},
+                "deletes": {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_delete.items()},
                 "pause_button": self.pause_button,
             },
         })
-        logger.debug(f"New ws client. Current number of ws clients: {len(WebSocketRevelryHandler.users)}")
+        logger.debug(f"New ws client. Current number of ws clients: {len(WebSocketYapHandler.users)}")
 
     def on_close(self):
-        WebSocketRevelryHandler.users.remove(self)
+        WebSocketYapHandler.users.remove(self)
 
     @classmethod
     def update_current_track(cls, track_name):
@@ -78,23 +78,23 @@ class WebSocketRevelryHandler(tornado.websocket.WebSocketHandler):
     def _handle_skip(self, parsed):
         track = parsed["payload"]["track_name"]
         # If the current track is different to the one stored, clear votes
-        if WebSocketRevelryHandler.current_track != track:
-            WebSocketRevelryHandler.update_current_track(track)
-            WebSocketRevelryHandler.votes_to_skip.clear()
-        if self in WebSocketRevelryHandler.votes_to_skip:
+        if WebSocketYapHandler.current_track != track:
+            WebSocketYapHandler.update_current_track(track)
+            WebSocketYapHandler.votes_to_skip.clear()
+        if self in WebSocketYapHandler.votes_to_skip:
             self.write_message({
                 "action": "skip_update",
                 "payload": {
                     "message": "You have already voted to skip this song.",
-                    "votes": len(WebSocketRevelryHandler.votes_to_skip),
+                    "votes": len(WebSocketYapHandler.votes_to_skip),
                 },
             })
         else:
-            WebSocketRevelryHandler.votes_to_skip.add(self)
-            if len(WebSocketRevelryHandler.votes_to_skip) >= self.required_votes_to_skip:
+            WebSocketYapHandler.votes_to_skip.add(self)
+            if len(WebSocketYapHandler.votes_to_skip) >= self.required_votes_to_skip:
                 self.core.playback.next()
-                WebSocketRevelryHandler.votes_to_skip.clear()
-                WebSocketRevelryHandler.send_updates(
+                WebSocketYapHandler.votes_to_skip.clear()
+                WebSocketYapHandler.send_updates(
                     None,
                     {
                         "action": "skip_update",
@@ -106,43 +106,43 @@ class WebSocketRevelryHandler(tornado.websocket.WebSocketHandler):
                     "action": "skip_update",
                     "payload": {
                         "message": f"You have voted to skip this song. "
-                                   f"({self.required_votes_to_skip - len(WebSocketRevelryHandler.votes_to_skip)}"
+                                   f"({self.required_votes_to_skip - len(WebSocketYapHandler.votes_to_skip)}"
                                    f" more votes needed)",
-                        "votes": len(WebSocketRevelryHandler.votes_to_skip),
+                        "votes": len(WebSocketYapHandler.votes_to_skip),
                     },
                 })
-                WebSocketRevelryHandler.send_updates(
+                WebSocketYapHandler.send_updates(
                     self,
                     {
                         "action": "skip_update",
                         "payload": {
                             "message": "Someone voted to skip",
-                            "votes": len(WebSocketRevelryHandler.votes_to_skip),
+                            "votes": len(WebSocketYapHandler.votes_to_skip),
                         },
                     }
                 )
 
     def _handle_move_to_top(self, parsed):
         track_id = parsed["payload"]["track_id"]
-        if track_id not in WebSocketRevelryHandler.votes_to_top:
-            WebSocketRevelryHandler.votes_to_top[track_id] = set()
-        if self in WebSocketRevelryHandler.votes_to_top[track_id]:
+        if track_id not in WebSocketYapHandler.votes_to_top:
+            WebSocketYapHandler.votes_to_top[track_id] = set()
+        if self in WebSocketYapHandler.votes_to_top[track_id]:
             self.write_message({
                 "action": "top_update",
                 "payload": {
                     "message": "You have already voted to top this song",
-                    "tops": {key: len(value) for (key, value) in WebSocketRevelryHandler.votes_to_top.items()}
+                    "tops": {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_top.items()}
                 },
             })
         else:
-            WebSocketRevelryHandler.votes_to_top[track_id].add(self)
+            WebSocketYapHandler.votes_to_top[track_id].add(self)
             track = self.core.tracklist.filter({"tlid": [track_id]}).get()[0]
-            if len(WebSocketRevelryHandler.votes_to_top[track_id]) >= self.required_votes_to_top:
+            if len(WebSocketYapHandler.votes_to_top[track_id]) >= self.required_votes_to_top:
                 track_index = [tl_id for (tl_id, _) in self.core.tracklist.get_tl_tracks().get()].index(track_id)
                 self.core.tracklist.move(start=track_index, end=track_index, to_position=1)
-                self.remove_expired_ids(WebSocketRevelryHandler.votes_to_top)
-                WebSocketRevelryHandler.votes_to_top.pop(track_id)
-                tops = {key: len(value) for (key, value) in WebSocketRevelryHandler.votes_to_top.items()}
+                self.remove_expired_ids(WebSocketYapHandler.votes_to_top)
+                WebSocketYapHandler.votes_to_top.pop(track_id)
+                tops = {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_top.items()}
                 self.send_updates(None, {
                     "action": "top_update",
                     "payload": {
@@ -151,18 +151,18 @@ class WebSocketRevelryHandler(tornado.websocket.WebSocketHandler):
                     }
                 })
             else:
-                tops = {key: len(value) for (key, value) in WebSocketRevelryHandler.votes_to_top.items()}
+                tops = {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_top.items()}
                 self.write_message({
                     "action": "top_update",
                     "payload": {
                         "message":
                             f"You have voted to top {track.track.name}. "
-                            f"({self.required_votes_to_top - len(WebSocketRevelryHandler.votes_to_top[track_id])}"
+                            f"({self.required_votes_to_top - len(WebSocketYapHandler.votes_to_top[track_id])}"
                             f" more votes needed)",
                         "tops": tops
                     },
                 })
-                WebSocketRevelryHandler.send_updates(
+                WebSocketYapHandler.send_updates(
                     self,
                     {
                         "action": "top_update",
@@ -175,22 +175,22 @@ class WebSocketRevelryHandler(tornado.websocket.WebSocketHandler):
 
     def _handle_delete(self, parsed):
         track_id = parsed["payload"]["track_id"]
-        if track_id not in WebSocketRevelryHandler.votes_to_delete:
-            WebSocketRevelryHandler.votes_to_delete[track_id] = set()
-        if self in WebSocketRevelryHandler.votes_to_delete[track_id]:
+        if track_id not in WebSocketYapHandler.votes_to_delete:
+            WebSocketYapHandler.votes_to_delete[track_id] = set()
+        if self in WebSocketYapHandler.votes_to_delete[track_id]:
             self.write_message({
                 "action": "delete_update",
                 "payload": {
                     "message": "You have already voted to delete this song",
-                    "deletes": {key: len(value) for (key, value) in WebSocketRevelryHandler.votes_to_delete.items()}
+                    "deletes": {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_delete.items()}
                 },
             })
         else:
-            WebSocketRevelryHandler.votes_to_delete[track_id].add(self)
-            if len(WebSocketRevelryHandler.votes_to_delete[track_id]) >= self.required_votes_to_delete:
+            WebSocketYapHandler.votes_to_delete[track_id].add(self)
+            if len(WebSocketYapHandler.votes_to_delete[track_id]) >= self.required_votes_to_delete:
                 track = self.core.tracklist.remove({"tlid": [track_id]}).get()[0]
-                self.remove_expired_ids(WebSocketRevelryHandler.votes_to_delete)
-                deletes = {key: len(value) for (key, value) in WebSocketRevelryHandler.votes_to_delete.items()}
+                self.remove_expired_ids(WebSocketYapHandler.votes_to_delete)
+                deletes = {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_delete.items()}
                 self.send_updates(None, {
                     "action": "delete_update",
                     "payload": {
@@ -200,18 +200,18 @@ class WebSocketRevelryHandler(tornado.websocket.WebSocketHandler):
                 })
             else:
                 track = self.core.tracklist.filter({"tlid": [track_id]}).get()[0]
-                deletes = {key: len(value) for (key, value) in WebSocketRevelryHandler.votes_to_delete.items()}
+                deletes = {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_delete.items()}
                 self.write_message({
                     "action": "delete_update",
                     "payload": {
                         "message":
                             f"You have voted to delete {track.track.name}. "
-                            f"({self.required_votes_to_delete - len(WebSocketRevelryHandler.votes_to_delete[track_id])}"
+                            f"({self.required_votes_to_delete - len(WebSocketYapHandler.votes_to_delete[track_id])}"
                             f" more votes needed)",
                         "deletes": deletes
                     },
                 })
-                WebSocketRevelryHandler.send_updates(
+                WebSocketYapHandler.send_updates(
                     self,
                     {
                         "action": "delete_update",

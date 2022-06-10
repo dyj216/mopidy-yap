@@ -26,7 +26,7 @@ const mopidy = new Mopidy({
   webSocketUrl: `ws://${document.location.host}/mopidy/ws`,
 });
 
-const revelry = new WebSocket(`ws://${document.location.host}/revelry/ws`);
+const yap = new WebSocket(`ws://${document.location.host}/yap/ws`);
 
 export function getTrackInfo(track) {
   if (track.tlid) {
@@ -51,7 +51,7 @@ const ColorModeContext = React.createContext({ toggleColorMode: () => {} });
 async function handleSkip(trackInfo) {
   if (trackInfo.name) {
     const payload = JSON.stringify({action: "vote_to_skip", payload: {track_name: trackInfo.name}});
-    revelry.send(payload);
+    yap.send(payload);
   }
 }
 
@@ -59,7 +59,7 @@ function handleTogglePlay(playing) {
   playing ? mopidy.playback.pause() : mopidy.playback.resume();
 }
 
-function Revelry() {
+function Yap() {
   const colorMode = React.useContext(ColorModeContext);
   const [trackInfo, setTrackInfo] = React.useState({});
   const [trackList, setTrackList] = React.useState([]);
@@ -105,7 +105,7 @@ function Revelry() {
       setPlaying(new_state === "playing");
     });
 
-    revelry.onmessage = function(event) {
+    yap.onmessage = function(event) {
       const response = JSON.parse(event.data);
       setSnackbarMessage(response.payload.message);
       switch (response.action) {
@@ -135,7 +135,7 @@ function Revelry() {
     <React.Fragment>
       <CssBaseline enableColorScheme/>
       <HelmetHeaders/>
-      <div className="revelry">
+      <div className="yap">
         <Snackbar
           open={openSnackbar}
           onClose={() => setOpenSnackbar(false)}
@@ -178,7 +178,7 @@ function Revelry() {
             </Grid>
             <Grid item xs={12}>
               <Playlist
-                revelry={revelry}
+                yap={yap}
                 trackInfo={trackInfo}
                 trackList={trackList}
                 deleteCount={deleteCount}
@@ -226,7 +226,7 @@ export default function ToggleColorMode() {
   return (
     <ColorModeContext.Provider value={colorMode}>
       <ThemeProvider theme={theme}>
-        <Revelry />
+        <Yap />
       </ThemeProvider>
     </ColorModeContext.Provider>
   );
