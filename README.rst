@@ -1,5 +1,5 @@
 ****************************
-Mopidy-Yap
+Mopidy-Yap (yet another party)
 ****************************
 
 Mopidy web extension inspired by the `Mopidy-Party <https://github.com/Lesterpig/mopidy-party>`_ extension.
