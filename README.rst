@@ -1,6 +1,6 @@
-****************************
+******************************
 Mopidy-Yap (yet another party)
-****************************
+******************************
 
 Mopidy web extension inspired by the `Mopidy-Party <https://github.com/Lesterpig/mopidy-party>`_ extension.
 It allows guests to manage the sound.
