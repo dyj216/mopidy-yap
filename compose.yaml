@@ -1,0 +1,10 @@
+version: "3"
+
+services:
+  mopidy:
+    container_name: mopidy
+    build:
+      context: ./
+    command: mopidy
+    ports:
+      - "6680:6680"
