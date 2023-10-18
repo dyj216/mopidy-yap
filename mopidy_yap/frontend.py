@@ -27,7 +27,11 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
         pass
 
     def track_playback_ended(self, tl_track, time_position):
-        if self.config["spotify"] and self.config["spotify"]["enabled"] and self.config["yap"]["autoplay"]:
+        if (
+            getattr(self.config, "spotify", None)
+            and getattr(self.config["spotify"], "enabled", False)
+            and self.config["yap"]["autoplay"]
+        ):
             tl_length = self.core.tracklist.get_length().get()
             if tl_length == 1:
                 uris = self.load_more_tracks([tl_track.track.uri])
@@ -35,7 +39,6 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
                     self.core.tracklist.add(uris=uris)
 
     def refresh_spotify_token(self):
-
         try:
             url = "https://auth.mopidy.com/spotify/token"
             data = {
@@ -67,15 +70,15 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
             error = json.loads(e.read())
             error = {
                 "message": "Could not refresh Spotify token: "
-                           + error["error_description"]
+                + error["error_description"]
             }
             return error
 
     def get_spotify_token(self):
         # Expired, so go get a new one
         if (
-                not self.spotify_token
-                or self.spotify_token["expires_at"] <= time.time()
+            not self.spotify_token
+            or self.spotify_token["expires_at"] <= time.time()
         ):
             self.refresh_spotify_token()
 
@@ -97,9 +100,9 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
 
         url = "https://api.spotify.com/v1/recommendations/"
         url = (
-                url
-                + "?seed_tracks="
-                + (",".join(seed_tracks)).replace("spotify:track:", "")
+            url
+            + "?seed_tracks="
+            + (",".join(seed_tracks)).replace("spotify:track:", "")
         )
         url = url + "&limit=1"
         http_client = HTTPClient()
@@ -120,7 +123,7 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
             error = json.loads(e.read())
             error_response = {
                 "message": "Could not fetch Spotify recommendations: "
-                           + error["error_description"]
+                + error["error_description"]
             }
             logger.error(
                 "Could not fetch Spotify recommendations: "
