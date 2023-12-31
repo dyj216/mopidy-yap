@@ -73,7 +73,10 @@ function Yap() {
 
   useEffect(() => {
     async function getTrackList() {
-      const tracks = await mopidy.tracklist.getTlTracks();
+      const tracks = await mopidy.tracklist.slice({
+            start: await mopidy.tracklist.index({}),
+            end: await mopidy.tracklist.getLength()
+          });
       setTrackList(tracks);
     }
 
@@ -84,7 +87,6 @@ function Yap() {
     }
 
     mopidy.on("state:online", async () => {
-      mopidy.tracklist.setConsume({value: true});
       const currentState = await mopidy.playback.getState();
       setPlaying(currentState === "playing");
       const currentTrack = await mopidy.playback.getCurrentTrack();
