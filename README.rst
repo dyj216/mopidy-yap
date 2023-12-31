@@ -43,6 +43,13 @@ Configuration
     votes_to_top = 3
     pause_button = false
 
+Limitations
+===========
+
+- This frontend can display a stream, but you can not add a stream to the queue with this backend.
+- This frontend can only display the upcoming tracks. If you want to handle the tracklist, you should use a
+  different frontend for that.
+
 Project resources
 =================
 
