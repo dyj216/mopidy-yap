@@ -4,6 +4,8 @@ RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
             gstreamer \
+            gst-plugins-good \
+            gst-plugins-bad \
             mopidy \
             py-pip \
             alpine-sdk \
@@ -12,14 +14,14 @@ RUN apk update \
             curl
 
 # Default configuration
-RUN pip3 install --upgrade pip
+#RUN pip3 install --upgrade pip
 
 COPY docker/config/requirements.txt requirements.txt
-RUN pip3 install -r requirements.txt \
+RUN pip3 install --break-system-packages -r requirements.txt \
     && rm -rf ~/.cache/pip
 
 ADD . /src
-RUN pip3 install /src/
+RUN pip3 install --break-system-packages /src/
 
 # Set default environment variables
 ENV TZ=Europe/Budapest
