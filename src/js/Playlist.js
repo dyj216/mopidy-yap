@@ -37,7 +37,7 @@ function setAsNextTrack(yap, tlid) {
 export function Playlist(props) {
   const currentTrackName = props.trackInfo.name ? props.trackInfo.name : "Nothing is playing";
   const currentTrackArtistAndAlbum = props.trackInfo.artists
-    ? props.trackInfo.artists + " - " + props.trackInfo.album
+    ? props.trackInfo.artists + (props.trackInfo.album ? " - " + props.trackInfo.album : "")
     : "Add a track to party!";
 
   return <Accordion>
@@ -78,7 +78,7 @@ export function Playlist(props) {
             </ListItemAvatar>
             <ListItemText
               primary={track.track.name + " " + printTrackLength(track.track)}
-              secondary={track.track.artists.map(a => a.name).join(', ') + ' - ' + track.track.album.name}
+              secondary={track.track.artists ? track.track.artists.map(a => a.name).join(', ') + ' - ' + track.track.album.name : ""}
             />
           </ListItem>
         ))}

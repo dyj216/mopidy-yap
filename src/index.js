@@ -32,8 +32,8 @@ export function getTrackInfo(track) {
   if (track.tlid) {
     track = track.track;
   }
-  const artists = track.artists.map((a) => a.name).join(", ");
-  const album = track.album.name;
+  const artists = track.artists ? track.artists.map((a) => a.name).join(", ") : "";
+  const album = track.album ? track.album.name : "";
 
   return {
     artists,
@@ -80,10 +80,17 @@ function Yap() {
       setTrackList(tracks);
     }
 
-    function updateTrackList(track) {
-      const trackInfo = track ? getTrackInfo(track) : {};
+    async function updateTrackList(track) {
+      let trackInfo = track ? getTrackInfo(track) : {};
+      const streamTitle = await mopidy.playback.getStreamTitle();
+      if (streamTitle) {
+        const splitStreamTitle = streamTitle.split(" - ")
+
+        trackInfo.artists = splitStreamTitle.length > 1 ? splitStreamTitle[0] : streamTitle;
+        trackInfo.album = splitStreamTitle.length > 1 ? splitStreamTitle[1] : "";
+      }
       setTrackInfo(trackInfo);
-      getTrackList();
+      await getTrackList();
     }
 
     mopidy.on("state:online", async () => {
@@ -91,17 +98,21 @@ function Yap() {
       setPlaying(currentState === "playing");
       const currentTrack = await mopidy.playback.getCurrentTrack();
 
-      updateTrackList(currentTrack);
-      setSkipCount(0);
+      await updateTrackList(currentTrack);
     });
-    mopidy.on("event:trackPlaybackStarted", ({ tl_track }) => {
-      updateTrackList(tl_track.track);
+    mopidy.on("event:trackPlaybackStarted", async ({ tl_track }) => {
+      await updateTrackList(tl_track.track);
+      setSkipCount(0);
     });
     mopidy.on("event:tracklistChanged", async () => {
       const currentTrack = await mopidy.playback.getCurrentTrack();
 
-      updateTrackList(currentTrack);
+      await updateTrackList(currentTrack);
       setSkipCount(0);
+    });
+    mopidy.on("event:streamTitleChanged", async () => {
+      const currentTrack = await mopidy.playback.getCurrentTrack();
+      await updateTrackList(currentTrack);
     });
     mopidy.on("event:playbackStateChanged", ({old_state, new_state}) => {
       setPlaying(new_state === "playing");
