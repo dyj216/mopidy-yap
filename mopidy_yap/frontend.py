@@ -28,8 +28,8 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
 
     def track_playback_ended(self, tl_track, time_position):
         if (
-            getattr(self.config, "spotify", None)
-            and getattr(self.config["spotify"], "enabled", False)
+            "spotify" in self.config
+            and self.config["spotify"].get("enabled", False)
             and self.config["yap"]["autoplay"]
         ):
             tl_length = self.core.tracklist.get_length().get()
