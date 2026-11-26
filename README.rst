@@ -31,6 +31,10 @@ The web interface is built with `Vite <https://vite.dev/>`_ from ``frontend/`` i
 ``npm start`` runs a dev server on http://localhost:3000/ that proxies to a
 Mopidy instance on localhost:6680 (for example ``docker compose up``).
 
+``docker compose up`` runs Mopidy with Yap on http://localhost:6680/ and plays
+the music in ``~/Music`` (mounted read-only). Create that folder first:
+otherwise Docker creates an empty one owned by root.
+
 Tests need Mopidy and its GStreamer bindings. With those installed::
 
     python3 -m pip install -e ".[test]"

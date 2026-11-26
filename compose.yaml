@@ -1,5 +1,3 @@
-version: "3"
-
 services:
   mopidy:
     container_name: mopidy
@@ -8,3 +6,5 @@ services:
     command: mopidy
     ports:
       - "6680:6680"
+    volumes:
+      - ${HOME}/Music:/music:ro
