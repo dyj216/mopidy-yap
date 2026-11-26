@@ -139,7 +139,15 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
             track = self.core.tracklist.filter({"tlid": [track_id]}).get()[0]
             if len(WebSocketYapHandler.votes_to_top[track_id]) >= self.required_votes_to_top:
                 track_index = [tl_id for (tl_id, _) in self.core.tracklist.get_tl_tracks().get()].index(track_id)
-                self.core.tracklist.move(start=track_index, end=track_index, to_position=1)
+                current_index = self.core.tracklist.index().get()
+                if current_index is None:
+                    to_position = 0
+                elif track_index > current_index:
+                    to_position = current_index + 1
+                else:
+                    # Removing a track before the current one shifts it left by one.
+                    to_position = current_index
+                self.core.tracklist.move(start=track_index, end=track_index, to_position=to_position)
                 self.remove_expired_ids(WebSocketYapHandler.votes_to_top)
                 WebSocketYapHandler.votes_to_top.pop(track_id)
                 tops = {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_top.items()}
