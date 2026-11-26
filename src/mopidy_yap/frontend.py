@@ -1,13 +1,12 @@
 import json
+import logging
 import time
-import urllib.parse
 import urllib.error
+import urllib.parse
 
 import pykka
-import logging
-
+from mopidy.core import Core, CoreListener
 from tornado.httpclient import HTTPClient, HTTPRequest
-from mopidy.core import CoreListener, Core
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +53,7 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
 
         try:
             http_client = HTTPClient()
-            request = HTTPRequest(
-                url, method="POST", body=urllib.parse.urlencode(data)
-            )
+            request = HTTPRequest(url, method="POST", body=urllib.parse.urlencode(data))
             response = http_client.fetch(request)
 
             token = json.loads(response.body)
@@ -76,10 +73,7 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
 
     def get_spotify_token(self):
         # Expired, so go get a new one
-        if (
-            not self.spotify_token
-            or self.spotify_token["expires_at"] <= time.time()
-        ):
+        if not self.spotify_token or self.spotify_token["expires_at"] <= time.time():
             self.refresh_spotify_token()
 
         response = {"spotify_token": self.spotify_token}
@@ -126,8 +120,7 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
                 + error["error_description"]
             }
             logger.error(
-                "Could not fetch Spotify recommendations: "
-                + error["error_description"]
+                "Could not fetch Spotify recommendations: " + error["error_description"]
             )
             logger.debug(error_response)
             return False

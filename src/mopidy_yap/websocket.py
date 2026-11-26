@@ -1,5 +1,6 @@
 import logging
-from typing import Optional, Awaitable
+from collections.abc import Awaitable
+from typing import ClassVar
 
 import tornado.escape
 import tornado.websocket
@@ -7,14 +8,20 @@ import tornado.websocket
 logger = logging.getLogger(__name__)
 
 
-class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
-    users = set()
-    current_track = ""
-    votes_to_skip = set()
-    votes_to_delete = {}
-    votes_to_top = {}
+def _vote_counts(votes: dict) -> dict:
+    """Map each voted track ID to its number of votes."""
+    return {track_id: len(voters) for track_id, voters in votes.items()}
 
-    def data_received(self, chunk: bytes) -> Optional[Awaitable[None]]:
+
+class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
+    # Shared by all connections: votes are counted across clients.
+    users: ClassVar[set] = set()
+    current_track = ""
+    votes_to_skip: ClassVar[set] = set()
+    votes_to_delete: ClassVar[dict] = {}
+    votes_to_top: ClassVar[dict] = {}
+
+    def data_received(self, chunk: bytes) -> Awaitable[None] | None:
         pass
 
     def initialize(self, core, configuration):
@@ -33,17 +40,22 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
 
     def open(self):
         WebSocketYapHandler.users.add(self)
-        self.write_message({
-            "action": "connect",
-            "payload": {
-                "message": "Connected!",
-                "votes": len(WebSocketYapHandler.votes_to_skip),
-                "tops": {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_top.items()},
-                "deletes": {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_delete.items()},
-                "pause_button": self.pause_button,
-            },
-        })
-        logger.debug(f"New ws client. Current number of ws clients: {len(WebSocketYapHandler.users)}")
+        self.write_message(
+            {
+                "action": "connect",
+                "payload": {
+                    "message": "Connected!",
+                    "votes": len(WebSocketYapHandler.votes_to_skip),
+                    "tops": _vote_counts(WebSocketYapHandler.votes_to_top),
+                    "deletes": _vote_counts(WebSocketYapHandler.votes_to_delete),
+                    "pause_button": self.pause_button,
+                },
+            }
+        )
+        logger.debug(
+            "New ws client. Current number of ws clients: %d",
+            len(WebSocketYapHandler.users),
+        )
 
     def on_close(self):
         WebSocketYapHandler.users.remove(self)
@@ -59,7 +71,7 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
         for user in cls.users.difference({ego}):
             try:
                 user.write_message(update)
-            except:
+            except Exception:
                 logger.error("Error sending message", exc_info=True)
 
     def on_message(self, message):
@@ -82,13 +94,15 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
             WebSocketYapHandler.update_current_track(track)
             WebSocketYapHandler.votes_to_skip.clear()
         if self in WebSocketYapHandler.votes_to_skip:
-            self.write_message({
-                "action": "skip_update",
-                "payload": {
-                    "message": "You have already voted to skip this song.",
-                    "votes": len(WebSocketYapHandler.votes_to_skip),
-                },
-            })
+            self.write_message(
+                {
+                    "action": "skip_update",
+                    "payload": {
+                        "message": "You have already voted to skip this song.",
+                        "votes": len(WebSocketYapHandler.votes_to_skip),
+                    },
+                }
+            )
         else:
             WebSocketYapHandler.votes_to_skip.add(self)
             if len(WebSocketYapHandler.votes_to_skip) >= self.required_votes_to_skip:
@@ -102,15 +116,19 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
                     },
                 )
             else:
-                self.write_message({
-                    "action": "skip_update",
-                    "payload": {
-                        "message": f"You have voted to skip this song. "
-                                   f"({self.required_votes_to_skip - len(WebSocketYapHandler.votes_to_skip)}"
-                                   f" more votes needed)",
-                        "votes": len(WebSocketYapHandler.votes_to_skip),
-                    },
-                })
+                remaining = self.required_votes_to_skip - len(
+                    WebSocketYapHandler.votes_to_skip
+                )
+                self.write_message(
+                    {
+                        "action": "skip_update",
+                        "payload": {
+                            "message": "You have voted to skip this song. "
+                            f"({remaining} more votes needed)",
+                            "votes": len(WebSocketYapHandler.votes_to_skip),
+                        },
+                    }
+                )
                 WebSocketYapHandler.send_updates(
                     self,
                     {
@@ -119,7 +137,7 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
                             "message": "Someone voted to skip",
                             "votes": len(WebSocketYapHandler.votes_to_skip),
                         },
-                    }
+                    },
                 )
 
     def _handle_move_to_top(self, parsed):
@@ -127,18 +145,25 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
         if track_id not in WebSocketYapHandler.votes_to_top:
             WebSocketYapHandler.votes_to_top[track_id] = set()
         if self in WebSocketYapHandler.votes_to_top[track_id]:
-            self.write_message({
-                "action": "top_update",
-                "payload": {
-                    "message": "You have already voted to top this song",
-                    "tops": {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_top.items()}
-                },
-            })
+            self.write_message(
+                {
+                    "action": "top_update",
+                    "payload": {
+                        "message": "You have already voted to top this song",
+                        "tops": _vote_counts(WebSocketYapHandler.votes_to_top),
+                    },
+                }
+            )
         else:
             WebSocketYapHandler.votes_to_top[track_id].add(self)
             track = self.core.tracklist.filter({"tlid": [track_id]}).get()[0]
-            if len(WebSocketYapHandler.votes_to_top[track_id]) >= self.required_votes_to_top:
-                track_index = [tl_id for (tl_id, _) in self.core.tracklist.get_tl_tracks().get()].index(track_id)
+            if (
+                len(WebSocketYapHandler.votes_to_top[track_id])
+                >= self.required_votes_to_top
+            ):
+                track_index = [
+                    tl_id for (tl_id, _) in self.core.tracklist.get_tl_tracks().get()
+                ].index(track_id)
                 current_index = self.core.tracklist.index().get()
                 if current_index is None:
                     to_position = 0
@@ -147,29 +172,37 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
                 else:
                     # Removing a track before the current one shifts it left by one.
                     to_position = current_index
-                self.core.tracklist.move(start=track_index, end=track_index, to_position=to_position)
+                self.core.tracklist.move(
+                    start=track_index, end=track_index, to_position=to_position
+                )
                 self.remove_expired_ids(WebSocketYapHandler.votes_to_top)
                 WebSocketYapHandler.votes_to_top.pop(track_id)
-                tops = {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_top.items()}
-                self.send_updates(None, {
-                    "action": "top_update",
-                    "payload": {
-                        "message": f"{track.track.name} is moved to the top.",
-                        "tops": tops
-                    }
-                })
-            else:
-                tops = {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_top.items()}
-                self.write_message({
-                    "action": "top_update",
-                    "payload": {
-                        "message":
-                            f"You have voted to top {track.track.name}. "
-                            f"({self.required_votes_to_top - len(WebSocketYapHandler.votes_to_top[track_id])}"
-                            f" more votes needed)",
-                        "tops": tops
+                tops = _vote_counts(WebSocketYapHandler.votes_to_top)
+                self.send_updates(
+                    None,
+                    {
+                        "action": "top_update",
+                        "payload": {
+                            "message": f"{track.track.name} is moved to the top.",
+                            "tops": tops,
+                        },
                     },
-                })
+                )
+            else:
+                tops = _vote_counts(WebSocketYapHandler.votes_to_top)
+                remaining = self.required_votes_to_top - len(
+                    WebSocketYapHandler.votes_to_top[track_id]
+                )
+                self.write_message(
+                    {
+                        "action": "top_update",
+                        "payload": {
+                            "message": f"You have voted to top {track.track.name}. "
+                            f"({remaining} more votes needed)",
+                            "tops": tops,
+                        },
+                    }
+                )
                 WebSocketYapHandler.send_updates(
                     self,
                     {
@@ -178,7 +211,7 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
                             "message": f"Someone voted to top {track.track.name}",
                             "tops": tops,
                         },
-                    }
+                    },
                 )
 
     def _handle_delete(self, parsed):
@@ -186,39 +219,50 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
         if track_id not in WebSocketYapHandler.votes_to_delete:
             WebSocketYapHandler.votes_to_delete[track_id] = set()
         if self in WebSocketYapHandler.votes_to_delete[track_id]:
-            self.write_message({
-                "action": "delete_update",
-                "payload": {
-                    "message": "You have already voted to delete this song",
-                    "deletes": {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_delete.items()}
-                },
-            })
+            self.write_message(
+                {
+                    "action": "delete_update",
+                    "payload": {
+                        "message": "You have already voted to delete this song",
+                        "deletes": _vote_counts(WebSocketYapHandler.votes_to_delete),
+                    },
+                }
+            )
         else:
             WebSocketYapHandler.votes_to_delete[track_id].add(self)
-            if len(WebSocketYapHandler.votes_to_delete[track_id]) >= self.required_votes_to_delete:
+            if (
+                len(WebSocketYapHandler.votes_to_delete[track_id])
+                >= self.required_votes_to_delete
+            ):
                 track = self.core.tracklist.remove({"tlid": [track_id]}).get()[0]
                 self.remove_expired_ids(WebSocketYapHandler.votes_to_delete)
-                deletes = {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_delete.items()}
-                self.send_updates(None, {
-                    "action": "delete_update",
-                    "payload": {
-                        "message": f"{track.track.name} is removed.",
-                        "deletes": deletes
-                    }
-                })
+                deletes = _vote_counts(WebSocketYapHandler.votes_to_delete)
+                self.send_updates(
+                    None,
+                    {
+                        "action": "delete_update",
+                        "payload": {
+                            "message": f"{track.track.name} is removed.",
+                            "deletes": deletes,
+                        },
+                    },
+                )
             else:
                 track = self.core.tracklist.filter({"tlid": [track_id]}).get()[0]
-                deletes = {key: len(value) for (key, value) in WebSocketYapHandler.votes_to_delete.items()}
-                self.write_message({
-                    "action": "delete_update",
-                    "payload": {
-                        "message":
-                            f"You have voted to delete {track.track.name}. "
-                            f"({self.required_votes_to_delete - len(WebSocketYapHandler.votes_to_delete[track_id])}"
-                            f" more votes needed)",
-                        "deletes": deletes
-                    },
-                })
+                deletes = _vote_counts(WebSocketYapHandler.votes_to_delete)
+                remaining = self.required_votes_to_delete - len(
+                    WebSocketYapHandler.votes_to_delete[track_id]
+                )
+                self.write_message(
+                    {
+                        "action": "delete_update",
+                        "payload": {
+                            "message": f"You have voted to delete {track.track.name}. "
+                            f"({remaining} more votes needed)",
+                            "deletes": deletes,
+                        },
+                    }
+                )
                 WebSocketYapHandler.send_updates(
                     self,
                     {
@@ -227,7 +271,7 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
                             "message": f"Someone voted to delete {track.track.name}",
                             "deletes": deletes,
                         },
-                    }
+                    },
                 )
 
     def remove_expired_ids(self, id_collection: dict):
