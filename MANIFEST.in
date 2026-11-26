@@ -16,3 +16,5 @@ recursive-include mopidy_yap *.svg
 recursive-include mopidy_yap *.ttf
 recursive-include mopidy_yap *.woff
 recursive-include mopidy_yap *.woff2
+recursive-include mopidy_yap/static *.json
+recursive-include mopidy_yap/static *.txt
