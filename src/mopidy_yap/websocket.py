@@ -72,7 +72,7 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
             try:
                 user.write_message(update)
             except Exception:
-                logger.error("Error sending message", exc_info=True)
+                logger.error("Yap: error sending websocket message", exc_info=True)
 
     def on_message(self, message):
         logger.debug("got message %r", message)
@@ -85,7 +85,7 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
         elif parsed["action"] == "vote_to_top":
             self._handle_move_to_top(parsed)
         else:
-            logger.warning("Unknown action %s", message)
+            logger.warning("Yap: unknown websocket action %s", message)
 
     def _handle_skip(self, parsed):
         track = parsed["payload"]["track_name"]
