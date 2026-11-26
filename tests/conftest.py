@@ -36,7 +36,7 @@ class DummyLibrary(backend.LibraryProvider):
                 t
                 for t in CATALOG.values()
                 if any(a.name.casefold() in artists for a in t.artists)
-                and t.name.casefold() in titles
+                and (not titles or t.name.casefold() in titles)
             ],
         )
 

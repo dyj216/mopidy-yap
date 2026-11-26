@@ -1,4 +1,5 @@
 import logging
+import random
 import re
 import time
 
@@ -16,8 +17,11 @@ LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/"
 # Last.fm sends no caching headers, so keep answers for a day.
 LASTFM_CACHE_SECONDS = 24 * 60 * 60
 LASTFM_CACHE_SIZE = 500
-# Similar tracks to look up in the library before giving up.
-LASTFM_CANDIDATES = 20
+# Similar tracks, then similar artists, to look up in the library before
+# giving up. Artists get a longer list: a small library is more likely to have
+# something by a similar artist than one of a few exact tracks.
+LASTFM_SIMILAR_TRACKS = 20
+LASTFM_SIMILAR_ARTISTS = 50
 # Recently played tracks are not recommended again.
 RECENT_HISTORY = 50
 
@@ -164,26 +168,25 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
 
     # Last.fm
 
-    def lastfm_similar(self, artist: str, title: str) -> list[dict]:
-        """Last.fm's similar tracks for a track, cached as its terms require.
+    def _lastfm_get(self, method: str, limit: int, **params) -> dict | None:
+        """Call a Last.fm API method, cached as its terms require.
 
-        Each item has "artist", "title" and "url" (the Last.fm track page).
+        Returns the response data, or None if Last.fm had no answer.
         """
-        key = (artist.casefold(), title.casefold())
+        key = (method, *(str(v).casefold() for v in params.values()))
         cached = self.lastfm_cache.get(key)
         if cached and cached[0] > time.time():
             return cached[1]
 
-        logger.debug("Yap: loading similar tracks from Last.fm")
+        logger.debug("Yap: calling Last.fm %s", method)
         try:
             response = self._http().get(
                 LASTFM_API_URL,
                 params={
-                    "method": "track.getsimilar",
-                    "artist": artist,
-                    "track": title,
+                    "method": method,
+                    **params,
                     "autocorrect": 1,
-                    "limit": LASTFM_CANDIDATES,
+                    "limit": limit,
                     "api_key": self._lastfm_api_key(),
                     "format": "json",
                 },
@@ -195,26 +198,47 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
                 "Yap: could not fetch Last.fm recommendations: %s",
                 _describe_http_error(e),
             )
-            return []
+            return None  # not cached, so the next track tries again
 
         if "error" in data:
-            # Error 6 means Last.fm doesn't know the track: not worth an error.
+            # Error 6 means Last.fm doesn't know the track or artist.
             log = logger.debug if data["error"] == 6 else logger.error
             log("Yap: Last.fm error %s: %s", data["error"], data.get("message"))
-            similar = []
-        else:
-            similar = [
-                {"artist": t["artist"]["name"], "title": t["name"], "url": t["url"]}
-                for t in data.get("similartracks", {}).get("track", [])
-            ]
+            data = None
 
         if len(self.lastfm_cache) >= LASTFM_CACHE_SIZE:
             self.lastfm_cache.pop(next(iter(self.lastfm_cache)))
-        self.lastfm_cache[key] = (time.time() + LASTFM_CACHE_SECONDS, similar)
-        return similar
+        self.lastfm_cache[key] = (time.time() + LASTFM_CACHE_SECONDS, data)
+        return data
+
+    def lastfm_similar(self, artist: str, title: str) -> list[dict]:
+        """Last.fm's similar tracks: dicts with "artist", "title" and "url"
+        (the Last.fm track page)."""
+        data = self._lastfm_get(
+            "track.getsimilar", LASTFM_SIMILAR_TRACKS, artist=artist, track=title
+        )
+        return [
+            {"artist": t["artist"]["name"], "title": t["name"], "url": t["url"]}
+            for t in (data or {}).get("similartracks", {}).get("track", [])
+        ]
+
+    def lastfm_similar_artists(self, artist: str) -> list[dict]:
+        """Last.fm's similar artists: dicts with "artist" and "url" (the
+        Last.fm artist page)."""
+        data = self._lastfm_get(
+            "artist.getsimilar", LASTFM_SIMILAR_ARTISTS, artist=artist
+        )
+        return [
+            {"artist": a["name"], "url": a["url"]}
+            for a in (data or {}).get("similarartists", {}).get("artist", [])
+        ]
 
     def lastfm_recommendation(self, track) -> str | None:
-        """Find a track Last.fm considers similar in the user's library."""
+        """Find something Last.fm considers similar in the user's library.
+
+        Tries Last.fm's similar tracks first. If none of them is in the
+        library, falls back to any track by one of the similar artists.
+        """
         if not track.name or not track.artists:
             return None  # Last.fm needs an artist and a title
         artist = sorted(a.name for a in track.artists if a.name)[0]
@@ -225,25 +249,54 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
         }
 
         for candidate in self.lastfm_similar(artist, track.name):
-            uri = self._find_in_library(candidate["artist"], candidate["title"])
-            if uri and uri not in excluded:
-                from .websocket import WebSocketYapHandler
+            uri = self._find_in_library(
+                candidate["artist"], candidate["title"], excluded
+            )
+            if uri:
+                return self._recommended(uri, candidate["url"])
 
-                WebSocketYapHandler.mark_lastfm_recommendation(uri, candidate["url"])
-                return uri
-        logger.debug("Yap: none of Last.fm's similar tracks are in the library")
+        logger.debug("Yap: no similar track in the library, trying similar artists")
+        for candidate in self.lastfm_similar_artists(artist):
+            uri = self._find_artist_in_library(candidate["artist"], excluded)
+            if uri:
+                return self._recommended(uri, candidate["url"])
+
+        logger.debug("Yap: nothing Last.fm recommends is in the library")
         return None
 
-    def _find_in_library(self, artist: str, title: str) -> str | None:
-        results = self.core.library.search(
-            query={"artist": [artist], "track_name": [title]}
-        ).get()
+    def _recommended(self, uri: str, lastfm_url: str) -> str:
+        from .websocket import WebSocketYapHandler
+
+        WebSocketYapHandler.mark_lastfm_recommendation(uri, lastfm_url)
+        return uri
+
+    def _library_tracks(self, query: dict, artist: str):
+        """Tracks found by a library search whose artist matches `artist`."""
+        results = self.core.library.search(query=query).get()
         for result in results or []:
             for found in result.tracks or ():
-                if (
-                    found.name
-                    and found.name.casefold().startswith(title.casefold())
-                    and any(_same(a.name or "", artist) for a in found.artists)
+                if found.name and any(
+                    _same(a.name or "", artist) for a in found.artists
                 ):
-                    return found.uri
+                    yield found
+
+    def _find_in_library(
+        self, artist: str, title: str, excluded: set = frozenset()
+    ) -> str | None:
+        query = {"artist": [artist], "track_name": [title]}
+        for found in self._library_tracks(query, artist):
+            if (
+                found.name.casefold().startswith(title.casefold())
+                and found.uri not in excluded
+            ):
+                return found.uri
         return None
+
+    def _find_artist_in_library(self, artist: str, excluded: set) -> str | None:
+        """A random track by `artist` from the library that isn't excluded."""
+        uris = {
+            found.uri
+            for found in self._library_tracks({"artist": [artist]}, artist)
+            if found.uri not in excluded
+        }
+        return random.choice(sorted(uris)) if uris else None

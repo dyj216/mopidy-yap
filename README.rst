@@ -75,8 +75,10 @@ on. Recommendations come from:
 - **Spotify**, for Spotify tracks, when Mopidy-Spotify is enabled.
 - **Last.fm**, for any track with an artist and title: Yap asks Last.fm for
   similar tracks and queues the first one it finds in your music sources
-  (local files or any other backend's search). This needs your own free
-  Last.fm API key in ``lastfm_api_key``.
+  (local files or any other backend's search). If none of them is there, it
+  falls back to a random track by one of Last.fm's similar artists. Recently
+  played tracks are skipped. This needs your own free Last.fm API key in
+  ``lastfm_api_key``.
 
 With neither set up, autoplay does nothing.
 
@@ -88,7 +90,7 @@ the key means accepting the `Last.fm API terms
 
 Recommendations powered by `AudioScrobbler <https://www.last.fm>`_: when
 Last.fm is used, the web interface credits it and links each recommended
-track to its Last.fm page.
+track to its Last.fm page (or the artist's page, for the fallback).
 
 Yap's websocket only accepts connections from pages served by the same Mopidy
 instance. To use the interface from another origin, add it to Mopidy's

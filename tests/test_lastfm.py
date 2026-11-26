@@ -15,13 +15,17 @@ API_KEY = "test-lastfm-key"
 
 
 class FakeLastfm:
-    """Serves track.getSimilar with a fixed answer."""
+    """Serves track.getSimilar and artist.getSimilar with fixed answers."""
 
-    def __init__(self, similar=(), error=None, status=200):
+    def __init__(self, similar=(), similar_artists=(), error=None, status=200):
         self.similar = similar
+        self.similar_artists = similar_artists
         self.error = error
         self.status = status
         self.requests = []
+
+    def methods(self):
+        return [r.url.params["method"] for r in self.requests]
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
@@ -29,6 +33,18 @@ class FakeLastfm:
             return httpx.Response(self.status, text="oops")
         if self.error:
             return httpx.Response(200, json={"error": self.error, "message": "Nope"})
+        if request.url.params["method"] == "artist.getsimilar":
+            return httpx.Response(
+                200,
+                json={
+                    "similarartists": {
+                        "artist": [
+                            {"name": a, "url": f"https://www.last.fm/music/{a}"}
+                            for a in self.similar_artists
+                        ]
+                    }
+                },
+            )
         return httpx.Response(
             200,
             json={
@@ -79,7 +95,7 @@ def test_queues_the_first_similar_track_found_in_the_library(core_proxy):
         "artist": "Rick Astley",
         "track": "Never Gonna Give You Up",
         "autocorrect": "1",
-        "limit": str(frontend.LASTFM_CANDIDATES),
+        "limit": str(frontend.LASTFM_SIMILAR_TRACKS),
         "api_key": API_KEY,
         "format": "json",
     }
@@ -239,3 +255,100 @@ def test_without_spotify_or_last_fm_autoplay_does_nothing(core_proxy, key):
 
     recommend.assert_not_called()
     assert queued(core_proxy) == [seed]
+
+
+# Fallback to similar artists
+
+
+def test_prefers_similar_tracks_over_similar_artists(core_proxy):
+    seed = catalog_track("Rick Astley", "Never Gonna Give You Up")
+    take_on_me = catalog_track("a-ha", "Take on Me")
+    catalog_track("Wham!", "Last Christmas")
+    fake = FakeLastfm(similar=[("a-ha", "Take on Me")], similar_artists=["Wham!"])
+    yap = make_yap(core_proxy, fake)
+
+    start_last_track(core_proxy, yap, seed)
+
+    assert queued(core_proxy) == [seed, take_on_me]
+    assert fake.methods() == ["track.getsimilar"]
+
+
+def test_falls_back_to_a_track_by_a_similar_artist(core_proxy):
+    seed = catalog_track("Rick Astley", "Never Gonna Give You Up")
+    wham = catalog_track("Wham!", "Last Christmas")
+    fake = FakeLastfm(
+        similar=[("Not In", "The Library")],
+        similar_artists=["Also Not In Library", "Wham!"],
+    )
+    yap = make_yap(core_proxy, fake)
+
+    start_last_track(core_proxy, yap, seed)
+
+    assert queued(core_proxy) == [seed, wham]
+    assert fake.methods() == ["track.getsimilar", "artist.getsimilar"]
+    assert dict(fake.requests[1].url.params) == {
+        "method": "artist.getsimilar",
+        "artist": "Rick Astley",
+        "autocorrect": "1",
+        "limit": str(frontend.LASTFM_SIMILAR_ARTISTS),
+        "api_key": API_KEY,
+        "format": "json",
+    }
+    # Linked to the artist's Last.fm page, as the terms require.
+    assert WebSocketYapHandler.lastfm_tracks == {
+        wham: "https://www.last.fm/music/Wham!"
+    }
+
+
+def test_similar_artist_fallback_skips_queued_tracks(core_proxy):
+    seed = catalog_track("Rick Astley", "Never Gonna Give You Up")
+    wham = catalog_track("Wham!", "Last Christmas")
+    toto = catalog_track("Toto", "Africa")
+    core_proxy.tracklist.add(uris=[wham]).get()
+    yap = make_yap(core_proxy, FakeLastfm(similar_artists=["Wham!", "Toto"]))
+
+    start_last_track(core_proxy, yap, seed)
+
+    assert queued(core_proxy) == [wham, seed, toto]
+
+
+def test_similar_artist_fallback_picks_any_of_their_tracks(core_proxy):
+    seed = catalog_track("Rick Astley", "Never Gonna Give You Up")
+    wham = {
+        catalog_track("Wham!", "Last Christmas"),
+        catalog_track("Wham!", "Freedom"),
+    }
+    yap = make_yap(core_proxy, FakeLastfm(similar_artists=["Wham!"]))
+
+    start_last_track(core_proxy, yap, seed)
+
+    assert queued(core_proxy)[1] in wham
+
+
+def test_similar_artists_are_cached(core_proxy):
+    fake = FakeLastfm(similar_artists=["Wham!"])
+    yap = make_yap(core_proxy, fake)
+
+    yap.lastfm_similar_artists("Rick Astley")
+    yap.lastfm_similar_artists("RICK ASTLEY")
+
+    assert len(fake.requests) == 1
+
+
+def test_library_match_skips_excluded_versions():
+    def track(title, uri):
+        return models.Track(uri=uri, name=title, artists=[models.Artist(name="a-ha")])
+
+    core = mock.Mock()
+    core.library.search.return_value.get.return_value = [
+        models.SearchResult(
+            uri="x:search",
+            tracks=[
+                track("Take on Me", "x:original"),
+                track("Take on Me - Remaster", "x:remaster"),
+            ],
+        )
+    ]
+    yap = YapFrontend(make_config(lastfm_api_key=API_KEY), core)
+
+    assert yap._find_in_library("a-ha", "Take on Me", {"x:original"}) == "x:remaster"
