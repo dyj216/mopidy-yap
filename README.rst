@@ -47,6 +47,13 @@ Or run them in the Docker image::
         -e PYTHONDONTWRITEBYTECODE=1 --entrypoint sh mopidy-yap \
         -c "pip install -q --break-system-packages pytest && python3 -m pytest -p no:cacheprovider"
 
+Releases are published to PyPI by GitHub Actions (``.github/workflows/release.yml``)
+when a version tag is pushed: set the new version in ``pyproject.toml`` and
+``package.json``, commit, then ``git tag -a vX.Y.Z -m "Version X.Y.Z"`` and
+``git push origin vX.Y.Z``. The workflow runs the tests, checks the tag
+against the version and that the built web interface is committed, and
+publishes with PyPI Trusted Publishing (no API token needed).
+
 Usage
 =====
 

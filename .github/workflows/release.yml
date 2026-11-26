@@ -1,0 +1,76 @@
+# Publishes a release to PyPI when a version tag (e.g. v1.0.0) is pushed.
+# Uses PyPI Trusted Publishing, so no API token is stored anywhere: PyPI
+# trusts this workflow in the "pypi" environment of dyj216/mopidy-yap.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The Docker image has Mopidy and the GStreamer bindings the tests need.
+      - run: docker build -t mopidy-yap .
+      - run: >
+          docker run --rm --user root -v "$PWD:/repo:ro" -w /repo
+          -e PYTHONDONTWRITEBYTECODE=1 --entrypoint sh mopidy-yap
+          -c "pip install -q --break-system-packages pytest
+          && python3 -m pytest -p no:cacheprovider"
+
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Check that the tag matches the package version
+        run: |
+          version=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match version $version in pyproject.toml"
+            exit 1
+          fi
+      - name: Check that the committed web interface is up to date
+        run: |
+          npm ci
+          npm run build
+          if [ -n "$(git status --porcelain src/mopidy_yap/static)" ]; then
+            git status --short src/mopidy_yap/static
+            echo "::error::src/mopidy_yap/static is out of date: run npm run build and commit"
+            exit 1
+          fi
+      - run: python -m pip install build
+      - run: python -m build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/Mopidy-Yap/
+    permissions:
+      id-token: write  # for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
