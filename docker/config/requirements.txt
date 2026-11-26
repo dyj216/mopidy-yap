@@ -1,6 +1,2 @@
 Mopidy
 Mopidy-local
-Mopidy-musicbox_webclient
-# Mopidy-musicbox_webclient imports pkg_resources, which setuptools 82+ no
-# longer ships.
-setuptools<81
