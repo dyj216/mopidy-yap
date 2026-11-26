@@ -19,6 +19,7 @@ classifiers = [
     "Topic :: Multimedia :: Sound/Audio :: Players",
 ]
 dependencies = [
+    "httpx >= 0.26",
     "Mopidy >= 3.0",
     "Pykka >= 2.0.1",
 ]

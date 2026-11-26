@@ -1,14 +1,30 @@
-import json
 import logging
 import time
-import urllib.error
-import urllib.parse
 
+import httpx
 import pykka
+from mopidy import httpclient
 from mopidy.core import Core, CoreListener
-from tornado.httpclient import HTTPClient, HTTPRequest
 
 logger = logging.getLogger(__name__)
+
+SPOTIFY_TOKEN_URL = "https://auth.mopidy.com/spotify/token"
+SPOTIFY_RECOMMENDATIONS_URL = "https://api.spotify.com/v1/recommendations"
+
+
+def get_http_client(config) -> httpx.Client:
+    """HTTP client that respects Mopidy's proxy config and identifies Yap."""
+    from . import Extension, __version__
+
+    return httpx.Client(
+        proxy=httpclient.format_proxy(config["proxy"]),
+        headers={
+            "User-Agent": httpclient.format_user_agent(
+                f"{Extension.dist_name}/{__version__}"
+            )
+        },
+        timeout=10,
+    )
 
 
 class YapFrontend(pykka.ThreadingActor, CoreListener):
@@ -18,12 +34,11 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
         self.config = config
         self.core = core
         self.spotify_token = None
-
-    def on_start(self):
-        pass
+        self.http_client = None
 
     def on_stop(self):
-        pass
+        if self.http_client is not None:
+            self.http_client.close()
 
     def track_playback_ended(self, tl_track, time_position):
         if (
@@ -37,90 +52,47 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
                 if uris:
                     self.core.tracklist.add(uris=uris)
 
-    def refresh_spotify_token(self):
-        try:
-            url = "https://auth.mopidy.com/spotify/token"
-            data = {
+    def _http(self) -> httpx.Client:
+        if self.http_client is None:
+            self.http_client = get_http_client(self.config)
+        return self.http_client
+
+    def _spotify_access_token(self) -> str:
+        """Return a valid Spotify access token, fetching a new one if needed."""
+        if self.spotify_token and self.spotify_token["expires_at"] > time.time():
+            return self.spotify_token["access_token"]
+
+        response = self._http().post(
+            SPOTIFY_TOKEN_URL,
+            data={
                 "client_id": self.config["spotify"]["client_id"],
                 "client_secret": self.config["spotify"]["client_secret"],
                 "grant_type": "client_credentials",
-            }
-        except Exception:
-            error = {
-                "message": "Could not refresh Spotify token: invalid configuration"
-            }
-            return error
-
-        try:
-            http_client = HTTPClient()
-            request = HTTPRequest(url, method="POST", body=urllib.parse.urlencode(data))
-            response = http_client.fetch(request)
-
-            token = json.loads(response.body)
-            token["expires_at"] = time.time() + token["expires_in"]
-            self.spotify_token = token
-
-            response = {"spotify_token": token}
-            return response
-
-        except (urllib.error.HTTPError, urllib.error.URLError) as e:
-            error = json.loads(e.read())
-            error = {
-                "message": "Could not refresh Spotify token: "
-                + error["error_description"]
-            }
-            return error
-
-    def get_spotify_token(self):
-        # Expired, so go get a new one
-        if not self.spotify_token or self.spotify_token["expires_at"] <= time.time():
-            self.refresh_spotify_token()
-
-        response = {"spotify_token": self.spotify_token}
-
-        return response
-
-    def load_more_tracks(self, seed_tracks: list):
-        logger.debug("Loading a new track from Spotify")
-        try:
-            logger.debug("getting spotify token")
-            self.get_spotify_token()
-            spotify_token = self.spotify_token
-            access_token = spotify_token["access_token"]
-        except BaseException:
-            error = "MopidyFrontend: access_token missing or invalid"
-            logger.error(error)
-            return False
-
-        url = "https://api.spotify.com/v1/recommendations/"
-        url = (
-            url
-            + "?seed_tracks="
-            + (",".join(seed_tracks)).replace("spotify:track:", "")
+            },
         )
-        url = url + "&limit=1"
-        http_client = HTTPClient()
+        response.raise_for_status()
+        token = response.json()
+        token["expires_at"] = time.time() + token["expires_in"]
+        self.spotify_token = token
+        return token["access_token"]
 
+    def load_more_tracks(self, seed_tracks: list[str]) -> list[str]:
+        """Return URIs of Spotify tracks recommended for the seed tracks."""
+        logger.debug("Yap: loading a recommended track from Spotify")
         try:
-            http_response = http_client.fetch(
-                url, headers={"Authorization": "Bearer " + access_token}
+            access_token = self._spotify_access_token()
+            response = self._http().get(
+                SPOTIFY_RECOMMENDATIONS_URL,
+                params={
+                    "seed_tracks": ",".join(
+                        uri.removeprefix("spotify:track:") for uri in seed_tracks
+                    ),
+                    "limit": 1,
+                },
+                headers={"Authorization": f"Bearer {access_token}"},
             )
-            response_body = json.loads(http_response.body)
-
-            uris = []
-            for track in response_body["tracks"]:
-                uris.append(track["uri"])
-
-            return uris
-
-        except (urllib.error.HTTPError, urllib.error.URLError) as e:
-            error = json.loads(e.read())
-            error_response = {
-                "message": "Could not fetch Spotify recommendations: "
-                + error["error_description"]
-            }
-            logger.error(
-                "Could not fetch Spotify recommendations: " + error["error_description"]
-            )
-            logger.debug(error_response)
-            return False
+            response.raise_for_status()
+            return [track["uri"] for track in response.json()["tracks"]]
+        except (httpx.HTTPError, KeyError, ValueError) as e:
+            logger.error("Yap: could not fetch Spotify recommendations: %s", e)
+            return []
