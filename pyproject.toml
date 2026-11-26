@@ -1,6 +1,39 @@
 [build-system]
-requires = ["setuptools >= 42", "wheel"]
+requires = ["setuptools >= 77"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "Mopidy-Yap"
+version = "0.1.5"
+description = "Mopidy web extension for party in react"
+readme = "README.rst"
+requires-python = ">= 3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Zsolt Endreffy", email = "ifjezsolt@gmail.com" }]
+classifiers = [
+    "Environment :: No Input/Output (Daemon)",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Players",
+]
+dependencies = [
+    "Mopidy >= 3.0",
+    "Pykka >= 2.0.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/dyj216/mopidy-yap"
+
+[project.entry-points."mopidy.ext"]
+yap = "mopidy_yap:Extension"
+
+[tool.setuptools.packages.find]
+include = ["mopidy_yap*"]
+
+[tool.setuptools.package-data]
+mopidy_yap = ["ext.conf", "static/**/*"]
 
 [tool.black]
 target-version = ["py311"]
