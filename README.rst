@@ -13,7 +13,7 @@ It allows guests to manage the sound.
 Installation
 ============
 
-You must install `mopidy <https://www.mopidy.com/>`_ (version 3) and some backends (soundcloud, spotify, youtube...).
+You must install `mopidy <https://www.mopidy.com/>`_ (version 3 or 4) and some backends (soundcloud, spotify, youtube...).
 
 **PROD:** you just have to install pip and then::
 
