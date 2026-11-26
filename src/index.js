@@ -70,14 +70,27 @@ function Yap() {
   const [moveToTopCount, setMoveToTopCount] = React.useState({});
   const [pauseButton, setPauseButton] = React.useState(false);
   const [playing, setPlaying] = React.useState(false);
+  const [random, setRandom] = React.useState(false);
 
   useEffect(() => {
     async function getTrackList() {
-      const tracks = await mopidy.tracklist.slice({
-            start: await mopidy.tracklist.index({}),
-            end: await mopidy.tracklist.getLength()
-          });
-      setTrackList(tracks);
+      const isRandom = await mopidy.tracklist.getRandom();
+      setRandom(isRandom);
+      if (isRandom) {
+        // In random mode the play order is not exposed by Mopidy, so show
+        // every other track in the tracklist. The first element is the current
+        // track (or a placeholder), because Playlist renders slice(1).
+        const current = await mopidy.playback.getCurrentTlTrack();
+        const allTracks = await mopidy.tracklist.getTlTracks();
+        const rest = allTracks.filter(t => !current || t.tlid !== current.tlid);
+        setTrackList([current || {}, ...rest]);
+      } else {
+        const tracks = await mopidy.tracklist.slice({
+              start: await mopidy.tracklist.index({}),
+              end: await mopidy.tracklist.getLength()
+            });
+        setTrackList(tracks);
+      }
     }
 
     async function updateTrackList(track) {
@@ -111,6 +124,10 @@ function Yap() {
       setSkipCount(0);
     });
     mopidy.on("event:streamTitleChanged", async () => {
+      const currentTrack = await mopidy.playback.getCurrentTrack();
+      await updateTrackList(currentTrack);
+    });
+    mopidy.on("event:optionsChanged", async () => {
       const currentTrack = await mopidy.playback.getCurrentTrack();
       await updateTrackList(currentTrack);
     });
@@ -196,6 +213,7 @@ function Yap() {
                 trackList={trackList}
                 deleteCount={deleteCount}
                 moveToTopCount={moveToTopCount}
+                random={random}
               />
             </Grid>
             <SearchComponent mopidy={mopidy}/>

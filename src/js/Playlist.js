@@ -64,6 +64,11 @@ export function Playlist(props) {
     </AccordionSummary>
     <AccordionDetails>
       {props.trackList.length > 1 ? <List>
+        {props.random &&
+          <ListItem>
+            <ListItemText secondary="Shuffle is on: the remaining tracks play in random order."/>
+          </ListItem>
+        }
         {props.trackList.slice(1).map(track => (
           <ListItem
             key={track.tlid}
@@ -76,11 +81,13 @@ export function Playlist(props) {
             }
           >
             <ListItemAvatar>
-              <IconButton color="primary" size="large" onClick={() => setAsNextTrack(props.yap, track.tlid)}>
-                <Badge badgeContent={props.moveToTopCount[track.tlid]} color="primary">
-                  <KeyboardArrowUp/>
-                </Badge>
-              </IconButton>
+              {!props.random &&
+                <IconButton color="primary" size="large" onClick={() => setAsNextTrack(props.yap, track.tlid)}>
+                  <Badge badgeContent={props.moveToTopCount[track.tlid]} color="primary">
+                    <KeyboardArrowUp/>
+                  </Badge>
+                </IconButton>
+              }
             </ListItemAvatar>
             <ListItemText
               primary={track.track.name + " " + printTrackLength(track.track)}
