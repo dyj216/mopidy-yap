@@ -16,7 +16,6 @@ import {
   Tooltip,
   useMediaQuery
 } from "@mui/material";
-import {HelmetHeaders} from "./js/HelmetHeaders";
 import {SkipButton} from "./js/SkipButton";
 import {Playlist} from "./js/Playlist";
 import {SearchComponent} from "./js/SearchComponent";
@@ -164,7 +163,6 @@ function Yap() {
   return (
     <React.Fragment>
       <CssBaseline enableColorScheme/>
-      <HelmetHeaders/>
       <div className="yap">
         <Snackbar
           open={openSnackbar}
