@@ -51,6 +51,10 @@ Configuration
     votes_to_top = 3
     pause_button = false
 
+Yap's websocket only accepts connections from pages served by the same Mopidy
+instance. To use the interface from another origin, add it to Mopidy's
+``http/allowed_origins`` setting, like for Mopidy's own websocket.
+
 Limitations
 ===========
 

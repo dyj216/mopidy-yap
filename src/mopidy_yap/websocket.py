@@ -1,4 +1,5 @@
 import logging
+import urllib.parse
 from collections.abc import Awaitable
 from typing import ClassVar
 
@@ -30,13 +31,24 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
         self.required_votes_to_delete = configuration["yap"]["votes_to_delete"]
         self.required_votes_to_top = configuration["yap"]["votes_to_top"]
         self.pause_button = configuration["yap"]["pause_button"]
+        self.allowed_origins = {
+            o.lower() for o in configuration["http"]["allowed_origins"]
+        }
 
     def get_compression_options(self):
         # Non-None enables compression with default options.
         return {}
 
     def check_origin(self, origin: str) -> bool:
-        return True
+        # Same rule as Mopidy's own websocket: accept pages served by this
+        # Mopidy instance and origins listed in http/allowed_origins, so other
+        # web sites cannot cast votes from a visitor's browser.
+        origin_host = urllib.parse.urlparse(origin).netloc.lower()
+        request_host = self.request.headers.get("Host", "").lower()
+        if origin_host and origin_host in (self.allowed_origins | {request_host}):
+            return True
+        logger.warning("Yap: rejected websocket connection from origin %s", origin)
+        return False
 
     def open(self):
         WebSocketYapHandler.users.add(self)
