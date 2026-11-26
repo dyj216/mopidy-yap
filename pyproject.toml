@@ -24,6 +24,9 @@ dependencies = [
     "Pykka >= 2.0.1",
 ]
 
+[project.optional-dependencies]
+test = ["pytest"]
+
 [project.urls]
 Homepage = "https://github.com/dyj216/mopidy-yap"
 
@@ -51,3 +54,7 @@ select = [
     "UP",  # pyupgrade
     "W",   # pycodestyle warnings
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

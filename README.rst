@@ -31,6 +31,18 @@ The web interface is built with `Vite <https://vite.dev/>`_ from ``frontend/`` i
 ``npm start`` runs a dev server on http://localhost:3000/ that proxies to a
 Mopidy instance on localhost:6680 (for example ``docker compose up``).
 
+Tests need Mopidy and its GStreamer bindings. With those installed::
+
+    python3 -m pip install -e ".[test]"
+    python3 -m pytest
+
+Or run them in the Docker image::
+
+    docker build -t mopidy-yap .
+    docker run --rm --user root -v "$PWD:/repo:ro" -w /repo \
+        -e PYTHONDONTWRITEBYTECODE=1 --entrypoint sh mopidy-yap \
+        -c "pip install -q --break-system-packages pytest && python3 -m pytest -p no:cacheprovider"
+
 Usage
 =====
 
