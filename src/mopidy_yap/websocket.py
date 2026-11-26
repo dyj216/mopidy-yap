@@ -275,7 +275,7 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
                 )
 
     def remove_expired_ids(self, id_collection: dict):
-        tl_ids = (tl_id for (tl_id, _) in self.core.tracklist.get_tl_tracks().get())
+        tl_ids = {tl_id for (tl_id, _) in self.core.tracklist.get_tl_tracks().get()}
         for voted_track_id in tuple(id_collection):
             if voted_track_id not in tl_ids:
                 id_collection.pop(voted_track_id)
