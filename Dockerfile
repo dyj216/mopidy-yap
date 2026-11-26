@@ -1,25 +1,34 @@
 FROM alpine:latest
 
+# GStreamer and its Python bindings come from Alpine; Mopidy itself comes
+# from PyPI (requirements.txt), as the Alpine mopidy package lags behind.
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
             gstreamer \
-            mopidy \
+            gst-plugins-base \
+            gst-plugins-good \
+            gst-plugins-ugly \
+            gst-plugins-bad \
+            py3-gobject3 \
+            py3-gst \
             py-pip \
             alpine-sdk \
             python3-dev\
             dumb-init \
-            curl
+            curl \
+    && adduser -S -D -H -h /home/mopidy -G audio mopidy
 
-# Default configuration
-RUN pip3 install --upgrade pip
-
+# pip installs into the system Python so it can use the GStreamer bindings
+# from apk. Alpine marks it as externally managed (PEP 668), hence
+# --break-system-packages.
 COPY docker/config/requirements.txt requirements.txt
-RUN pip3 install -r requirements.txt \
+RUN pip3 install --break-system-packages -r requirements.txt \
     && rm -rf ~/.cache/pip
 
 ADD . /src
-RUN pip3 install /src/
+RUN pip3 install --break-system-packages /src/ \
+    && rm -rf ~/.cache/pip
 
 # Set default environment variables
 ENV TZ=Europe/Budapest
@@ -33,9 +42,6 @@ COPY docker/config/mopidy.conf $HOME/.config/mopidy/mopidy.conf
 
 # Set flie permissions
 RUN chown mopidy:audio -R /music $HOME
-
-# Add user mopidy to group audio
-RUN addgroup mopidy audio
 
 # Optional: add user mopidy to wheel group to enable sudo
 #RUN apk add --no-cache sudo && addgroup mopidy wheel
