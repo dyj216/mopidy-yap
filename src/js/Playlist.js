@@ -24,6 +24,12 @@ export function printTrackLength(track){
     return '(' + _min + ':' + (_sec < 10 ? '0' + _sec : _sec) + ')' ;
 }
 
+function formatArtistsAndAlbum(track) {
+  const artists = track.artists ? track.artists.map(a => a.name).join(', ') : "";
+  const album = track.album && track.album.name ? track.album.name : "";
+  return [artists, album].filter(Boolean).join(' - ');
+}
+
 function removeTrack(yap, tlid) {
   const payload = JSON.stringify({action: "vote_to_delete", payload: {track_id: tlid}});
   yap.send(payload);
@@ -78,7 +84,7 @@ export function Playlist(props) {
             </ListItemAvatar>
             <ListItemText
               primary={track.track.name + " " + printTrackLength(track.track)}
-              secondary={track.track.artists ? track.track.artists.map(a => a.name).join(', ') + ' - ' + track.track.album.name : ""}
+              secondary={formatArtistsAndAlbum(track.track)}
             />
           </ListItem>
         ))}
