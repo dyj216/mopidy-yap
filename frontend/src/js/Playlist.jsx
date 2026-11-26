@@ -4,6 +4,7 @@ import {
   AccordionSummary,
   Badge,
   IconButton,
+  Link,
   List,
   ListItem,
   ListItemAvatar,
@@ -28,6 +29,25 @@ export function formatArtistsAndAlbum(track) {
   const artists = track.artists ? track.artists.map(a => a.name).join(', ') : "";
   const album = track.album && track.album.name ? track.album.name : "";
   return [artists, album].filter(Boolean).join(' - ');
+}
+
+// Last.fm's terms require linking recommended tracks to their Last.fm page.
+function withLastfmLink(text, url) {
+  if (!url) {
+    return text;
+  }
+  return <>
+    {text}{text ? " · " : ""}
+    <Link
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Recommended by Last.fm"
+      onClick={event => event.stopPropagation()}
+    >
+      Last.fm
+    </Link>
+  </>;
 }
 
 function removeTrack(yap, tlid) {
@@ -58,7 +78,7 @@ export function Playlist(props) {
         </ListItemAvatar>
         <ListItemText
           primary={currentTrackName + " " + printTrackLength(props.trackInfo)}
-          secondary={currentTrackArtistAndAlbum}
+          secondary={withLastfmLink(currentTrackArtistAndAlbum, props.lastfmTracks[props.trackInfo.uri])}
         />
       </ListItem>
     </AccordionSummary>
@@ -91,7 +111,7 @@ export function Playlist(props) {
             </ListItemAvatar>
             <ListItemText
               primary={track.track.name + " " + printTrackLength(track.track)}
-              secondary={formatArtistsAndAlbum(track.track)}
+              secondary={withLastfmLink(formatArtistsAndAlbum(track.track), props.lastfmTracks[track.track.uri])}
             />
           </ListItem>
         ))}

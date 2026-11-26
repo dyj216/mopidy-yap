@@ -11,9 +11,11 @@ import {
   Fade,
   Grid,
   IconButton,
+  Link,
   Snackbar,
   ThemeProvider,
   Tooltip,
+  Typography,
   useMediaQuery
 } from "@mui/material";
 import {SkipButton} from "./js/SkipButton";
@@ -70,6 +72,9 @@ function Yap() {
   const [pauseButton, setPauseButton] = React.useState(false);
   const [playing, setPlaying] = React.useState(false);
   const [random, setRandom] = React.useState(false);
+  const [lastfm, setLastfm] = React.useState(false);
+  // Queued tracks recommended by Last.fm: URI -> Last.fm track page
+  const [lastfmTracks, setLastfmTracks] = React.useState({});
 
   useEffect(() => {
     async function getTrackList() {
@@ -136,6 +141,10 @@ function Yap() {
 
     yap.onmessage = function(event) {
       const response = JSON.parse(event.data);
+      if (response.action === "lastfm_update") {
+        setLastfmTracks(response.payload.tracks);
+        return;
+      }
       setSnackbarMessage(response.payload.message);
       switch (response.action) {
         case "delete_update":
@@ -152,6 +161,8 @@ function Yap() {
           setMoveToTopCount(response.payload.tops);
           setDeleteCount(response.payload.deletes);
           setPauseButton(response.payload.pause_button);
+          setLastfm(Boolean(response.payload.lastfm));
+          setLastfmTracks(response.payload.lastfm_tracks || {});
           break;
         default:
           break;
@@ -212,9 +223,20 @@ function Yap() {
                 deleteCount={deleteCount}
                 moveToTopCount={moveToTopCount}
                 random={random}
+                lastfmTracks={lastfmTracks}
               />
             </Grid>
             <SearchComponent mopidy={mopidy}/>
+            {lastfm &&
+              <Grid size={12}>
+                <Typography variant="caption" component="p" sx={{textAlign: "center"}}>
+                  Recommendations powered by{" "}
+                  <Link href="https://www.last.fm" target="_blank" rel="noopener noreferrer">
+                    AudioScrobbler
+                  </Link>
+                </Typography>
+              </Grid>
+            }
           </Grid>
         </Container>
       </div>

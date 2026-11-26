@@ -86,6 +86,10 @@ description are needed) and copy the "API key" into ``lastfm_api_key``. Using
 the key means accepting the `Last.fm API terms
 <https://www.last.fm/api/tos>`_, which allow non-commercial use only.
 
+Recommendations powered by `AudioScrobbler <https://www.last.fm>`_: when
+Last.fm is used, the web interface credits it and links each recommended
+track to its Last.fm page.
+
 Yap's websocket only accepts connections from pages served by the same Mopidy
 instance. To use the interface from another origin, add it to Mopidy's
 ``http/allowed_origins`` setting, like for Mopidy's own websocket.
