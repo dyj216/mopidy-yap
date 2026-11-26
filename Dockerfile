@@ -1,4 +1,4 @@
-FROM alpine:latest
+FROM alpine:3.24
 
 # GStreamer and its Python bindings come from Alpine; Mopidy itself comes
 # from PyPI (requirements.txt), as the Alpine mopidy package lags behind.
