@@ -23,6 +23,14 @@ You must install `mopidy <https://www.mopidy.com/>`_ (version 3) and some backen
 
     sudo python3 -m pip install -e .
 
+The web interface is built with `Vite <https://vite.dev/>`_ into ``mopidy_yap/static``::
+
+    npm install
+    npm run build
+
+``npm start`` runs a dev server on http://localhost:3000/ that proxies to a
+Mopidy instance on localhost:6680 (for example ``docker compose up``).
+
 Usage
 =====
 
