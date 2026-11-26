@@ -24,7 +24,7 @@ export function printTrackLength(track){
     return '(' + _min + ':' + (_sec < 10 ? '0' + _sec : _sec) + ')' ;
 }
 
-function formatArtistsAndAlbum(track) {
+export function formatArtistsAndAlbum(track) {
   const artists = track.artists ? track.artists.map(a => a.name).join(', ') : "";
   const album = track.album && track.album.name ? track.album.name : "";
   return [artists, album].filter(Boolean).join(' - ');

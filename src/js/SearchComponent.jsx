@@ -17,7 +17,7 @@ import {
   OutlinedInput
 } from "@mui/material";
 import {Add, Search} from "@mui/icons-material";
-import {printTrackLength} from "./Playlist";
+import {formatArtistsAndAlbum, printTrackLength} from "./Playlist";
 
 function SearchResults(props) {
   return (
@@ -32,7 +32,7 @@ function SearchResults(props) {
             </ListItemAvatar>
             <ListItemText
               primary={track.name + " " + printTrackLength(track)}
-              secondary={track.artists.map(a => a.name).join(', ') + ' - ' + track.album.name}
+              secondary={formatArtistsAndAlbum(track)}
             />
           </ListItemButton>
         </ListItem>
