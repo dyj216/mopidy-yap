@@ -168,7 +168,7 @@ function Yap() {
           open={openSnackbar}
           onClose={() => setOpenSnackbar(false)}
           anchorOrigin={{vertical: "top", horizontal: "center"}}
-          TransitionComponent={Fade}
+          slots={{transition: Fade}}
           message={snackbarMessage}
           autoHideDuration={3000}
           action={
@@ -182,8 +182,8 @@ function Yap() {
           }
         />
         <Container maxWidth="lg">
-          <Grid container columnSpacing={0} rowSpacing={2} justifyContent="center">
-            <Grid item xs="auto">
+          <Grid container columnSpacing={0} rowSpacing={2} sx={{justifyContent: "center"}}>
+            <Grid size="auto">
               <SkipButton onClick={() => handleSkip(trackInfo)} skipCount={skipCount}/>
               {pauseButton &&
                 <Tooltip title={playing ? "Pause" : "Play"}>
@@ -196,15 +196,15 @@ function Yap() {
                 </Tooltip>
               }
             </Grid>
-            <Grid item flexGrow={1}/>
-            <Grid item xs="auto">
+            <Grid size="grow"/>
+            <Grid size="auto">
               <Tooltip title="Change theme">
                 <IconButton size="large" onClick={colorMode.toggleColorMode} color="inherit">
                   <BrightnessMedium/>
                 </IconButton>
               </Tooltip>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <Playlist
                 yap={yap}
                 trackInfo={trackInfo}

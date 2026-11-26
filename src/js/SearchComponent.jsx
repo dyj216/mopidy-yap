@@ -87,7 +87,7 @@ export function SearchComponent(props) {
 
   return (
     <React.Fragment>
-      <Grid item xs={12}>
+      <Grid size={12}>
         <FormControl fullWidth variant="outlined" component="form" onSubmit={event => {
           setSearch(query);
           event.preventDefault();
@@ -112,11 +112,11 @@ export function SearchComponent(props) {
           />
         </FormControl>
       </Grid>
-      <Grid item xs={12}>
+      <Grid size={12}>
         {isError && <Alert severity="error">Something went wrong ...</Alert>}
         {
           isLoading ?
-            <Box sx={{ display: 'flex' }} justifyContent="center">
+            <Box sx={{display: 'flex', justifyContent: 'center'}}>
               <CircularProgress />
             </Box>
             : <SearchResults results={results} addTrack={addTrack}/>
