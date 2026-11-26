@@ -63,10 +63,28 @@ Configuration
     votes_to_top = 3
     pause_button = false
     autoplay = true
+    lastfm_api_key =
 
-``autoplay`` only has an effect with Mopidy-Spotify enabled: when the last
-Spotify track in the queue starts playing, Yap adds a Spotify recommendation
-based on it, so the music keeps going. Nothing is added while repeat is on.
+Autoplay
+--------
+
+When the last track in the queue starts playing, ``autoplay`` adds a
+recommended track so the music keeps going. Nothing is added while repeat is
+on. Recommendations come from:
+
+- **Spotify**, for Spotify tracks, when Mopidy-Spotify is enabled.
+- **Last.fm**, for any track with an artist and title: Yap asks Last.fm for
+  similar tracks and queues the first one it finds in your music sources
+  (local files or any other backend's search). This needs your own free
+  Last.fm API key in ``lastfm_api_key``.
+
+With neither set up, autoplay does nothing.
+
+To get a Last.fm API key, log in to Last.fm, fill in the form at
+https://www.last.fm/api/account/create (only the application name and
+description are needed) and copy the "API key" into ``lastfm_api_key``. Using
+the key means accepting the `Last.fm API terms
+<https://www.last.fm/api/tos>`_, which allow non-commercial use only.
 
 Yap's websocket only accepts connections from pages served by the same Mopidy
 instance. To use the interface from another origin, add it to Mopidy's

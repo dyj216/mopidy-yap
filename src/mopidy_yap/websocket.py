@@ -4,6 +4,7 @@ from collections.abc import Awaitable
 from typing import ClassVar
 
 import tornado.escape
+import tornado.ioloop
 import tornado.websocket
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,12 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
     votes_to_skip: ClassVar[set] = set()
     votes_to_delete: ClassVar[dict] = {}
     votes_to_top: ClassVar[dict] = {}
+    # Queued tracks that came from Last.fm recommendations: URI -> Last.fm
+    # track page. Last.fm's terms require linking to the page when its data
+    # is used.
+    lastfm_tracks: ClassVar[dict] = {}
+    max_lastfm_tracks = 200
+    io_loop = None
 
     def data_received(self, chunk: bytes) -> Awaitable[None] | None:
         pass
@@ -34,6 +41,11 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
         self.allowed_origins = {
             o.lower() for o in configuration["http"]["allowed_origins"]
         }
+        self.lastfm_enabled = bool(
+            configuration["yap"]["autoplay"]
+            and configuration["yap"].get("lastfm_api_key")
+        )
+        WebSocketYapHandler.io_loop = tornado.ioloop.IOLoop.current()
 
     def get_compression_options(self):
         # Non-None enables compression with default options.
@@ -61,6 +73,8 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
                     "tops": _vote_counts(WebSocketYapHandler.votes_to_top),
                     "deletes": _vote_counts(WebSocketYapHandler.votes_to_delete),
                     "pause_button": self.pause_button,
+                    "lastfm": self.lastfm_enabled,
+                    "lastfm_tracks": WebSocketYapHandler.lastfm_tracks,
                 },
             }
         )
@@ -76,6 +90,28 @@ class WebSocketYapHandler(tornado.websocket.WebSocketHandler):
     def update_current_track(cls, track_name):
         logger.debug("updating current track name")
         cls.current_track = track_name
+
+    @classmethod
+    def mark_lastfm_recommendation(cls, uri, url):
+        """Record that `uri` was queued from Last.fm and tell all clients.
+
+        Called from the frontend actor's thread, so the update runs on the
+        websocket's IOLoop.
+        """
+
+        def update():
+            cls.lastfm_tracks[uri] = url
+            while len(cls.lastfm_tracks) > cls.max_lastfm_tracks:
+                cls.lastfm_tracks.pop(next(iter(cls.lastfm_tracks)))
+            cls.send_updates(
+                None,
+                {"action": "lastfm_update", "payload": {"tracks": cls.lastfm_tracks}},
+            )
+
+        if cls.io_loop is None:
+            update()  # no websocket client has connected yet
+        else:
+            cls.io_loop.add_callback(update)
 
     @classmethod
     def send_updates(cls, ego, update):

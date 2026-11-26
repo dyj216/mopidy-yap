@@ -1,4 +1,5 @@
 import json
+import threading
 import types
 
 import pykka
@@ -20,7 +21,12 @@ class YapWebSocketTest(AsyncHTTPTestCase):
         WebSocketYapHandler.votes_to_skip.clear()
         WebSocketYapHandler.votes_to_delete.clear()
         WebSocketYapHandler.votes_to_top.clear()
-        self.config = make_config(votes_to_skip=2, votes_to_delete=2, votes_to_top=1)
+        self.config = make_config(
+            votes_to_skip=2,
+            votes_to_delete=2,
+            votes_to_top=1,
+            lastfm_api_key="key",
+        )
         self.config["http"]["allowed_origins"] = ["friend.example:3000"]
         self.core = start_core(self.config)
         super().setUp()
@@ -38,6 +44,7 @@ class YapWebSocketTest(AsyncHTTPTestCase):
             HTTPRequest(self.get_url("/ws").replace("http", "ws"), headers=headers)
         )
         connected = json.loads(await ws.read_message())
+        self.connected = connected
         assert connected["action"] == "connect"
         return ws
 
@@ -79,6 +86,34 @@ class YapWebSocketTest(AsyncHTTPTestCase):
     @gen_test
     async def test_accepts_clients_without_origin_header(self):
         await self.connect()
+
+    # Last.fm attribution
+
+    @gen_test
+    async def test_connect_says_whether_last_fm_credit_is_needed(self):
+        await self.connect()
+
+        assert self.connected["payload"]["lastfm"] is True
+        assert self.connected["payload"]["lastfm_tracks"] == {}
+
+    @gen_test
+    async def test_last_fm_recommendations_are_broadcast_to_clients(self):
+        alice = await self.connect()
+        url = "https://www.last.fm/music/a-ha/_/Take+on+Me"
+
+        # As the frontend actor does it, from another thread.
+        thread = threading.Thread(
+            target=WebSocketYapHandler.mark_lastfm_recommendation,
+            args=("dummy:take-on-me", url),
+        )
+        thread.start()
+        thread.join()
+        update = json.loads(await alice.read_message())
+
+        assert update == {
+            "action": "lastfm_update",
+            "payload": {"tracks": {"dummy:take-on-me": url}},
+        }
 
     # Voting
 
@@ -173,3 +208,12 @@ def test_remove_expired_ids_keeps_votes_for_tracks_still_queued():
         assert votes == {c: {"alice"}, a: {"bob"}}
     finally:
         pykka.ActorRegistry.stop_all()
+
+
+def test_last_fm_credit_is_off_without_api_key_or_autoplay():
+    for yap in [{}, {"lastfm_api_key": "key", "autoplay": False}]:
+        handler = types.SimpleNamespace()
+        WebSocketYapHandler.initialize(
+            handler, core=None, configuration=make_config(**yap)
+        )
+        assert handler.lastfm_enabled is False

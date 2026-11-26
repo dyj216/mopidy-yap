@@ -8,9 +8,37 @@ except ImportError:
     from mopidy.core import PlaybackState  # Mopidy 3
 
 
+# Tracks with artist and title, findable through library search.
+CATALOG: dict[str, models.Track] = {}
+
+
+def catalog_track(artist, title, scheme="dummy"):
+    """Add a tagged track to the dummy library and return its URI."""
+    uri = f"{scheme}:{artist}/{title}".replace(" ", "_")
+    CATALOG[uri] = models.Track(
+        uri=uri, name=title, artists=[models.Artist(name=artist)], length=1000
+    )
+    return uri
+
+
 class DummyLibrary(backend.LibraryProvider):
     def lookup(self, uri):
+        if uri in CATALOG:
+            return [CATALOG[uri]]
         return [models.Track(uri=uri, name=uri.removeprefix("dummy:"), length=1000)]
+
+    def search(self, query=None, uris=None, exact=False):
+        artists = [a.casefold() for a in query.get("artist", [])]
+        titles = [t.casefold() for t in query.get("track_name", [])]
+        return models.SearchResult(
+            uri="dummy:search",
+            tracks=[
+                t
+                for t in CATALOG.values()
+                if any(a.name.casefold() in artists for a in t.artists)
+                and t.name.casefold() in titles
+            ],
+        )
 
 
 class DummyPlayback(backend.PlaybackProvider):
@@ -68,9 +96,20 @@ def make_config(**yap):
             "votes_to_top": 3,
             "pause_button": False,
             "autoplay": True,
+            "lastfm_api_key": None,
             **yap,
         },
     }
+
+
+@pytest.fixture(autouse=True)
+def reset_shared_state():
+    from mopidy_yap.websocket import WebSocketYapHandler
+
+    CATALOG.clear()
+    WebSocketYapHandler.lastfm_tracks.clear()
+    WebSocketYapHandler.io_loop = None
+    yield
 
 
 @pytest.fixture
