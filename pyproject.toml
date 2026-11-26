@@ -30,7 +30,7 @@ Homepage = "https://github.com/dyj216/mopidy-yap"
 yap = "mopidy_yap:Extension"
 
 [tool.setuptools.packages.find]
-include = ["mopidy_yap*"]
+where = ["src"]
 
 [tool.setuptools.package-data]
 mopidy_yap = ["ext.conf", "static/**/*"]

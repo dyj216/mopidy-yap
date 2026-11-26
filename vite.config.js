@@ -1,3 +1,4 @@
+import {fileURLToPath} from "node:url";
 import {defineConfig} from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -6,9 +7,10 @@ import react from "@vitejs/plugin-react";
 // a Mopidy instance on localhost:6680 (e.g. `docker compose up`).
 export default defineConfig({
   plugins: [react()],
+  root: "frontend",
   base: "./",
   build: {
-    outDir: "mopidy_yap/static",
+    outDir: fileURLToPath(new URL("src/mopidy_yap/static", import.meta.url)),
     emptyOutDir: true,
   },
   server: {

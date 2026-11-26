@@ -23,7 +23,7 @@ You must install `mopidy <https://www.mopidy.com/>`_ (version 3 or 4) and some b
 
     sudo python3 -m pip install -e .
 
-The web interface is built with `Vite <https://vite.dev/>`_ into ``mopidy_yap/static``::
+The web interface is built with `Vite <https://vite.dev/>`_ from ``frontend/`` into ``src/mopidy_yap/static``::
 
     npm install
     npm run build
