@@ -40,17 +40,26 @@ class YapFrontend(pykka.ThreadingActor, CoreListener):
         if self.http_client is not None:
             self.http_client.close()
 
-    def track_playback_ended(self, tl_track, time_position):
-        if (
+    def _autoplay_enabled(self) -> bool:
+        return (
             "spotify" in self.config
             and self.config["spotify"].get("enabled", False)
             and self.config["yap"]["autoplay"]
-        ):
-            tl_length = self.core.tracklist.get_length().get()
-            if tl_length == 1:
-                uris = self.load_more_tracks([tl_track.track.uri])
-                if uris:
-                    self.core.tracklist.add(uris=uris)
+        )
+
+    def track_playback_started(self, tl_track):
+        # Queue a recommendation as soon as the last track starts, so playback
+        # continues into it. get_next_tlid() honours consume, repeat, random
+        # and single, so with repeat on nothing is ever added.
+        if not self._autoplay_enabled():
+            return
+        if not tl_track.track.uri.startswith("spotify:track:"):
+            return  # Spotify can only recommend based on Spotify tracks
+        if self.core.tracklist.get_next_tlid().get() is not None:
+            return
+        uris = self.load_more_tracks([tl_track.track.uri])
+        if uris:
+            self.core.tracklist.add(uris=uris)
 
     def _http(self) -> httpx.Client:
         if self.http_client is None:

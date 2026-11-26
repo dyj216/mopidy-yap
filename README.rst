@@ -64,8 +64,9 @@ Configuration
     pause_button = false
     autoplay = true
 
-``autoplay`` only has an effect with Mopidy-Spotify enabled: when the queue is
-about to run out, Yap adds a Spotify recommendation based on the last track.
+``autoplay`` only has an effect with Mopidy-Spotify enabled: when the last
+Spotify track in the queue starts playing, Yap adds a Spotify recommendation
+based on it, so the music keeps going. Nothing is added while repeat is on.
 
 Yap's websocket only accepts connections from pages served by the same Mopidy
 instance. To use the interface from another origin, add it to Mopidy's

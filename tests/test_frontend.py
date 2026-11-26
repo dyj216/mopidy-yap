@@ -8,7 +8,7 @@ import pytest
 from mopidy_yap import frontend
 from mopidy_yap.frontend import YapFrontend
 
-from .conftest import add_tracks, make_config, play
+from .conftest import make_config, play
 
 
 def spotify_config(**yap):
@@ -118,30 +118,72 @@ def test_load_more_tracks_logs_and_returns_nothing_on_http_error(yap, caplog):
     assert "Yap: could not fetch Spotify recommendations" in caplog.text
 
 
-@pytest.mark.parametrize(
-    ("config", "expect_autoplay"),
-    [
-        (spotify_config(), True),
-        (spotify_config(autoplay=False), False),
-        (make_config(), False),  # no Mopidy-Spotify
-    ],
-)
-def test_autoplay_adds_recommendation_when_queue_runs_out(
-    core_proxy, config, expect_autoplay
-):
-    [tl_track] = add_tracks(core_proxy, "last")
-    play(core_proxy, tl_track)
+def start_autoplay_scenario(core_proxy, config, uris, play_index, **options):
+    """Queue `uris`, set tracklist options, start the track at `play_index` and
+    deliver track_playback_started to Yap. Returns the queued URIs afterwards
+    and the mocked load_more_tracks."""
+    for option, value in options.items():
+        getattr(core_proxy.tracklist, f"set_{option}")(value).get()
+    tl_tracks = core_proxy.tracklist.add(uris=uris).get()
+    play(core_proxy, tl_tracks[play_index])
     yap = YapFrontend(config, core_proxy)
 
     with mock.patch.object(
-        yap, "load_more_tracks", return_value=["dummy:recommended"]
+        yap, "load_more_tracks", return_value=["spotify:track:recommended"]
     ) as load:
-        yap.track_playback_ended(tl_track=tl_track, time_position=1000)
+        yap.track_playback_started(tl_track=tl_tracks[play_index])
 
-    uris = [t.track.uri for t in core_proxy.tracklist.get_tl_tracks().get()]
-    if expect_autoplay:
-        load.assert_called_once_with(["dummy:last"])
-        assert uris == ["dummy:last", "dummy:recommended"]
-    else:
-        load.assert_not_called()
-        assert uris == ["dummy:last"]
+    queued = [t.track.uri for t in core_proxy.tracklist.get_tl_tracks().get()]
+    return queued, load
+
+
+A, B, REC = "spotify:track:a", "spotify:track:b", "spotify:track:recommended"
+
+
+@pytest.mark.parametrize("consume", [False, True])
+def test_autoplay_queues_recommendation_when_last_track_starts(core_proxy, consume):
+    queued, load = start_autoplay_scenario(
+        core_proxy, spotify_config(), [A, B], play_index=1, consume=consume
+    )
+
+    load.assert_called_once_with([B])
+    assert queued == [A, B, REC]
+
+
+def test_autoplay_waits_while_more_tracks_are_queued(core_proxy):
+    queued, load = start_autoplay_scenario(
+        core_proxy, spotify_config(), [A, B], play_index=0
+    )
+
+    load.assert_not_called()
+    assert queued == [A, B]
+
+
+def test_autoplay_adds_nothing_with_repeat_on(core_proxy):
+    queued, load = start_autoplay_scenario(
+        core_proxy, spotify_config(), [A, B], play_index=1, repeat=True
+    )
+
+    load.assert_not_called()
+    assert queued == [A, B]
+
+
+def test_autoplay_needs_a_spotify_track_to_seed_from(core_proxy):
+    queued, load = start_autoplay_scenario(
+        core_proxy, spotify_config(), ["dummy:local"], play_index=0
+    )
+
+    load.assert_not_called()
+    assert queued == ["dummy:local"]
+
+
+@pytest.mark.parametrize(
+    "config",
+    [spotify_config(autoplay=False), make_config()],  # make_config: no Spotify
+    ids=["autoplay off", "no Mopidy-Spotify"],
+)
+def test_autoplay_disabled(core_proxy, config):
+    queued, load = start_autoplay_scenario(core_proxy, config, [A], play_index=0)
+
+    load.assert_not_called()
+    assert queued == [A]

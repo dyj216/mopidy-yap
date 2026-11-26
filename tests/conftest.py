@@ -42,7 +42,7 @@ class DummyPlayback(backend.PlaybackProvider):
 
 
 class DummyBackend(pykka.ThreadingActor, backend.Backend):
-    uri_schemes = ("dummy",)
+    uri_schemes = ("dummy", "spotify")
 
     def __init__(self, config, audio):
         super().__init__()
