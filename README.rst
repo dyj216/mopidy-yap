@@ -13,15 +13,26 @@ It allows guests to manage the sound.
 Installation
 ============
 
-You must install `mopidy <https://www.mopidy.com/>`_ (version 3 or 4) and some backends (soundcloud, spotify, youtube...).
+You need `Mopidy <https://mopidy.com/>`_ (version 3 or 4) with some backends
+(local files, Spotify, YouTube...), and Python 3.11 or newer.
 
-**PROD:** you just have to install pip and then::
+Install Yap into the same Python environment as Mopidy, then restart Mopidy.
+If Mopidy came from your distribution's packages (apt, pacman, ...)::
 
-    sudo python3 -m pip install Mopidy-Yap
+    sudo python3 -m pip install --break-system-packages Mopidy-Yap
 
-**DEV:** After cloning the repository, install by running::
+Recent distributions (Debian 12, Ubuntu 23.04, Raspberry Pi OS Bookworm, Arch
+and others) protect the system Python from pip, so ``--break-system-packages``
+is needed; on older systems you can leave it out. If you installed Mopidy in a
+virtual environment, use that environment's pip instead, without the flag or
+``sudo``::
 
-    sudo python3 -m pip install -e .
+    /path/to/venv/bin/pip install Mopidy-Yap
+
+**Development:** after cloning the repository, install it in editable mode into
+the environment Mopidy runs in, with the same flags as above::
+
+    sudo python3 -m pip install --break-system-packages -e .
 
 The web interface is built with `Vite <https://vite.dev/>`_ from ``frontend/`` into ``src/mopidy_yap/static``::
 
