@@ -52,7 +52,9 @@ when a version tag is pushed: set the new version in ``pyproject.toml`` and
 ``package.json``, commit, then ``git tag -a vX.Y.Z -m "Version X.Y.Z"`` and
 ``git push origin vX.Y.Z``. The workflow runs the tests, checks the tag
 against the version and that the built web interface is committed, and
-publishes with PyPI Trusted Publishing (no API token needed).
+publishes with PyPI Trusted Publishing (no API token needed). It then creates
+the GitHub release, listing the commits since the previous tag and attaching
+the built files, unless a release for the tag was already created by hand.
 
 Usage
 =====
